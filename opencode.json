@@ -1,0 +1,21 @@
+{
+  "mcp": {
+    "servers": {
+      "Jira": {
+        "type": "remote",
+        "url": "https://mcp.atlassian.com/v2/mcp"
+      },
+      "qase": {
+        "type": "local",
+        "command": [
+          "npx",
+          "-y",
+          "@qase/mcp-server"
+        ],
+        "environment": {
+          "QASE_API_TOKEN": "6a948fc191b77ecfdcb1abfaa72c63a962b01cfe13a9e2557247bf2975ae0e3c"
+        }
+      }
+    }
+  }
+}
