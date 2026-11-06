@@ -1,10 +1,6 @@
 {
   "mcp": {
     "servers": {
-      "Jira": {
-        "type": "remote",
-        "url": "https://mcp.atlassian.com/v2/mcp"
-      },
       "redmine": {
         "type": "local",
         "command": ["npx", "-y", "@speraltafibrazo/redmine-mcp"],
