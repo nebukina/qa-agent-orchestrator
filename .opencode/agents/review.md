@@ -2,7 +2,9 @@
 description: Анализирует требования
 mode: subagent
 permission:
-   skill:
+    "redmine_*": allow
+    skill:
+      
       "requirement-review": allow   # Разрешаем использовать именно этот скилл
       "*": deny              # (Опционально) Запрещаем все остальные скиллы, чтобы агент не путался
 ---
