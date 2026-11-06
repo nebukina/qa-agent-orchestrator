@@ -1,5 +1,5 @@
 ---
-name: task-design.md
+name: task-design
 description: проектирование задач
 ---
 

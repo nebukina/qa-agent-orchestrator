@@ -1,5 +1,5 @@
 ---
-name: test-design.md
+name: test-design
 description: создание тестовой модели
 ---
 

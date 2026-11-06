@@ -9,15 +9,6 @@ permission:
 
 
 
----
-description: Агент-аудитор. Проверяет требования из Confluence.
-mode: subagent
-permission:
-skill:
-"requirement-review": allow
-"*": deny
----
-
 # Роль
 Ты — субагент-аудитор. Твоя единственная задача — провести аудит требований.
 
@@ -37,3 +28,4 @@ skill:
 - Вердикт (PASS / CONDITIONAL / FAIL).
 - Количество Blocking и Non-blocking проблем.
 - Список ID Blocking (если есть).
+- **Список requirement_id, которые заблокированы для публикации (BLOCKED_BY_OPEN_QUESTION)**, если вердикт CONDITIONAL.

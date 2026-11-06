@@ -1,5 +1,5 @@
 ---
-name: requirement-review.md
+name: requirement-review
 description: анализ требований
 ---
 
