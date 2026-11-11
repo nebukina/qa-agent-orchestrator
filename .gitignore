@@ -4,3 +4,6 @@
 # Зависимости
 node_modules/
 .opencode/node_modules/
+
+# Артефакты сборки (Maven)
+target/

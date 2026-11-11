@@ -1,12 +1,16 @@
 ---
-description: Агент создания тест-кейсов в Redmine.
+description: Агент создания тест-кейсов Redmine
 mode: subagent
-permission:
-  skill:
-    "test-design": allow
-    "*": deny
-  redmine_create_issue: allow # Разрешаем создание задач в Redmine
-  redmine_search: allow       # Разрешаем поиск для проверки дублей
+permissions:
+  - action: "skill"
+    resource: "*"
+    effect: "deny"
+  - action: "skill"
+    resource: "test-design"
+    effect: "allow"
+  - action: "redmine_*"
+    resource: "*"
+    effect: "allow"
 ---
 
 # Роль

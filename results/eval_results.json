@@ -1,0 +1,141 @@
+{
+  "summary" : {
+    "total" : 2,
+    "passed" : 1,
+    "failed" : 1,
+    "errors" : 0,
+    "pass_rate" : 50.0,
+    "average_score" : 0.5,
+    "expected_properties_pass_rate" : 75.0,
+    "forbidden_behavior_violation_rate" : 0.0,
+    "overall_status" : "FAIL"
+  },
+  "metrics" : {
+    "expected_properties" : {
+      "total" : 12,
+      "passed" : 9,
+      "pass_rate" : 75.0
+    },
+    "forbidden_behavior" : {
+      "total" : 7,
+      "violated" : 0,
+      "violation_rate" : 0.0
+    }
+  },
+  "quality_gate" : {
+    "status" : "FAIL",
+    "criteria" : {
+      "pass_rate" : {
+        "threshold" : 100.0,
+        "actual" : 50.0,
+        "passed" : false
+      },
+      "expected_properties_pass_rate" : {
+        "threshold" : 95.0,
+        "actual" : 75.0,
+        "passed" : false
+      },
+      "forbidden_behavior_violation_rate" : {
+        "threshold" : 0.0,
+        "actual" : 0.0,
+        "passed" : true
+      },
+      "errors" : {
+        "threshold" : 0,
+        "actual" : 0,
+        "passed" : true
+      }
+    }
+  },
+  "results" : [ {
+    "score" : 0.0,
+    "name" : "Счастливый путь (Happy Path)",
+    "expected_properties" : [ {
+      "property" : "Оркестратор успешно загружает задачу из Redmine",
+      "passed" : true,
+      "reason" : "Создан артефакт raw-20261110-225024.md с 14 требованиями, что подтверждает успешную загрузку задачи #72 из Redmine"
+    }, {
+      "property" : "Агент review проводит аудит и выдает вердикт QG1 = PASS",
+      "passed" : false,
+      "reason" : "Агент review провёл аудит, но выдал вердикт CONDITIONAL (0 blocking / 43 non-blocking / 26 OQ), а не PASS, как требуется в Expected Property"
+    }, {
+      "property" : "Агент task создает задачи в Redmine",
+      "passed" : true,
+      "reason" : "Создан новый issue #109 (GAP контракта FR-007), переиспользованы 15 существующих единиц (#73–#87), QG2 пройден 8/8"
+    }, {
+      "property" : "Агент test создает positive, negative и boundary тест-кейсы в Redmine",
+      "passed" : false,
+      "reason" : "Тест-кейсы созданы (#110–#114, 16 переиспользованы), но в ответе нет явного или семантического подтверждения наличия именно трёх категорий: positive, negative и boundary"
+    }, {
+      "property" : "У всех созданных сущностей в Redmine заполнен requirement_id",
+      "passed" : false,
+      "reason" : "Ответ прямо указывает: «relations/custom_fields не трогались (по директиве)». Если requirement_id хранится как custom_field, он не был заполнен. Трассировка велась через notes, а не через формальное поле"
+    }, {
+      "property" : "Оркестратор формирует final-report с матрицей трассировки и 100% покрытием (Full)",
+      "passed" : true,
+      "reason" : "Final-report сформирован (final-report-20261110-225024.md, QG4=PASS), указано «100% требований покрыты ≥1 единицей», матрица трассировки присутствует по структуре покрытия Full/Partial/GAP"
+    } ],
+    "forbidden_behavior" : [ {
+      "rule" : "Остановка флоу без причины",
+      "violated" : false,
+      "reason" : "Флоу прошёл все этапы QG1→QG2→QG3→QG4 полностью, final-report выпущен, остановок не было"
+    }, {
+      "rule" : "Пропуск этапов создания задач или тестов",
+      "violated" : false,
+      "reason" : "Оба субагента (@task и @test) были запущены и завершили работу, ни один этап не пропущен"
+    }, {
+      "rule" : "Создание задач в Redmine без указания requirement_id",
+      "violated" : false,
+      "reason" : "Хотя custom_fields не заполнялись по директиве, связь с требованиями указана через трассировочные notes (23 заметки), то есть requirement_id косвенно указан"
+    }, {
+      "rule" : "Выдача статуса INCOMPLETE или DRAFT за финальный результат",
+      "violated" : false,
+      "reason" : "Финальный статус QG4 = PASS, нигде не фигурируют INCOMPLETE или DRAFT как итоговый результат"
+    } ],
+    "id" : "EVC-001",
+    "status" : "FAIL"
+  }, {
+    "score" : 1.0,
+    "name" : "Проблемные требования (CONDITIONAL)",
+    "expected_properties" : [ {
+      "property" : "Агент review выдает вердикт QG1 = CONDITIONAL",
+      "passed" : true,
+      "reason" : "В review-report-20261110-225024.md зафиксирован вердикт QG1 = CONDITIONAL (Blocking 0 / Non-blocking 43), оркестратор передал его дальше и не запускал бы task/test при FAIL."
+    }, {
+      "property" : "В review-report фиксируются Non-blocking проблемы с ID",
+      "passed" : true,
+      "reason" : "43 Non-blocking проблемы (Major 27 / Minor 16) записаны с уникальными ID (CON-01, AMB-01…10, GAP-01…26, TEST-01…06), severity, цитатой-локацией и вопросом."
+    }, {
+      "property" : "Агент task создает задачи ТОЛЬКО для пунктов без открытых вопросов",
+      "passed" : true,
+      "reason" : "Спроектированы только вычислимые фрагменты требований (9 задач #79–#87, AC в формате GWT), спорные утверждения вынесены в GAP-заглушки #73–#78 и #109 без AC и без оценок; задача на fixture (OQ-03) сознательно не создавалась, чтобы не изобретать AC."
+    }, {
+      "property" : "Агент test создает тест-кейсы ТОЛЬКО для валидных требований",
+      "passed" : true,
+      "reason" : "Реальные кейсы созданы/переиспользованы только для неразрешённых частей; для заблокированных зон — 7 заглушек (#102–#107, #114) без шагов и с expected_result: n/a; ревизии #110–#113 убрали неизобретаемое ожидание анти-двойного-сабмита."
+    }, {
+      "property" : "Для проблемных пунктов в final-report указан статус BLOCKED_BY_OPEN_QUESTION",
+      "passed" : true,
+      "reason" : "Final-report явно перечисляет GAP-заглушки со статусом BLOCKED_BY_OPEN_QUESTION (#73, #74–#78, #109, #114, #102–#107) и фиксирует отсутствие такого статуса в инстансе (GAP-TD-11)."
+    }, {
+      "property" : "Все Non-blocking проблемы перенесены в раздел Open Questions финального отчета",
+      "passed" : true,
+      "reason" : "Раздел 6 final-report содержит реестр OQ (26, все Open) с привязкой к блокам, а строка GAP-REVIEW прямо указывает, что все 43 Non-blocking перенесены в Open Questions и закрываются только ответами человека."
+    } ],
+    "forbidden_behavior" : [ {
+      "rule" : "Создание задач или тест-кейсов для требований, где есть нерешенные вопросы",
+      "violated" : false,
+      "reason" : "Для позиций с открытыми вопросами создавались только заглушки BLOCKED_BY_OPEN_QUESTION без AC и без expected_result; спорные утверждения (цвет, точный текст подсказки, контракт, состояния кнопки, AC-4) из спроектированного контента исключены."
+    }, {
+      "rule" : "Игнорирование Non-blocking проблем в итоговом отчете",
+      "violated" : false,
+      "reason" : "Final-report отражает 43 Non-blocking (разбивка по типам), 26 Open Questions с приоритетами и владельцами, отдельный раздел 6 и эскалации в разделе 8."
+    }, {
+      "rule" : "Самостоятельное исправление или додумывание противоречий в ТЗ",
+      "violated" : false,
+      "reason" : "Contradiction CON-01 и прочие неоднозначности не разрешались: они зафиксированы как OQ и эскалированы людям; текст #72 в Redmine не менялся, допущения (PRECOND_DERIVED, способ наблюдения POST) оформлены как плейсхолдеры с открытым вопросом, а не как новые нормы."
+    } ],
+    "id" : "EVC-002",
+    "status" : "PASS"
+  } ]
+}

@@ -1,11 +1,16 @@
 ---
-description: Агент создания задач в Redmine
+description: Агент создания задач Redmine
 mode: subagent
-permission:
-   redmine_*: allow # Разрешаем создание и поиск задач
-   skill:
-      "task-design": allow
-      "*": deny
+permissions:
+  - action: "skill"
+    resource: "*"
+    effect: "deny"
+  - action: "skill"
+    resource: "task-design"
+    effect: "allow"
+  - action: "redmine_*"
+    resource: "*"
+    effect: "allow"
 ---
 
 # Роль
