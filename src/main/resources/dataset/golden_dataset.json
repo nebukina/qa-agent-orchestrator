@@ -1,10 +1,10 @@
 [
   {
     "id": "EVC-001",
-    "name": "Счастливый путь (Happy Path)",
+    "name": "Счастливый путь",
     "input": {
       "source": "redmine",
-      "issue_id": 72
+      "issue_id": 120
     },
     "expected_properties": [
       "Оркестратор успешно загружает задачу из Redmine",
@@ -24,7 +24,7 @@
     "name": "Проблемные требования (CONDITIONAL)",
     "input": {
       "source": "redmine",
-      "issue_id": 72
+      "issue_id": 121
     },
     "expected_properties": [
       "Агент review выдает вердикт QG1 = CONDITIONAL",

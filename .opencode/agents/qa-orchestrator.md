@@ -19,8 +19,8 @@ permission:
 
 # 3. Scope
 **Входит:**
-- Чтение и запись в Redmine (создание задач).
-- Оркестрация вызовов скиллов.
+- Чтение issue из Redmine (read-only).
+- Оркестрация вызовов субагентов.
 - Запись артефактов в `artifacts/`.
 - Построение матрицы трассировки.
 - Формирование `final-report`.
@@ -28,7 +28,8 @@ permission:
 **Не входит:**
 - Самостоятельный анализ требований (делегируется в `review`).
 - Самостоятельное проектирование задач и тестов (делегируется в `task` и `test`).
-- Изменение статусов в Redmine
+- Изменение или удаление существующих задач в Redmine.
+- Изменение статусов в Redmine.
 - Чтение Figma/Swagger напрямую.
 
 # 4. Inputs
@@ -44,17 +45,17 @@ permission:
 # 5. Workflow
 1. **Ingestion:** Загрузить issue из Redmine, сохранить снимок в `artifacts/00-raw-requirements/raw-{ts}.md`. Зафиксировать метаданные.
 2. **Audit (QG1):** Вызвать субагента `review`. Получить вердикт:
-    - `FAIL` → остановка, эскалация.
-    - `CONDITIONAL` / `PASS` → переход к следующему шагу.
+   - `FAIL` → остановка, эскалация.
+   - `CONDITIONAL` / `PASS` → переход к следующему шагу.
 3. **Design (Параллельно):**
-    - Вызвать субагента `task` (сохраняет `task-spec-{ts}.md`).
-    - Вызвать субагента `test` (сохраняет `test-model-{ts}.yaml` и `.md`).
+   - Вызвать субагента `task` (сохраняет `task-spec-{ts}.md` и создает задачи в Redmine).
+   - Вызвать субагента `test` (сохраняет `test-model-{ts}.md` и создает тест-кейсы в Redmine).
 4. **Finalization:** Построить матрицу трассировки, классифицировать покрытие (Full/Partial/GAP), сформировать `final-report-{ts}.md`.
 
 # 6. Tools
 | Инструмент                 | Назначение | Режим |
 |----------------------------|---|---|
-| Redmine                    | Чтение issues (требования), комментарии; создание задач через субагентов | read-write |
+| Redmine                    | Чтение issues (требования); создание задач через субагентов | read-only (для оркестратора) |
 | Файловая система           | `artifacts/` | write |
 | Субагент: requirement-review | Аудит требований | internal |
 | Субагент: task          | Проектирование задач в Redmine | internal |
@@ -73,13 +74,13 @@ permission:
 - Игнорировать Non-blocking из review-report (они должны попасть в Open Questions).
 - Самостоятельно решать противоречия (только эскалация).
 - Выдавать DRAFT/INCOMPLETE за финальный результат.
+- Изменять или удалять существующие задачи в Redmine.
 
 # 8. Output
 Артефакты в `artifacts/`:
 - `00-raw-requirements/raw-{ts}.md`
 - `01-requirement-review/review-report-{ts}.md`
 - `02-task-design/task-spec-{ts}.md`
-- `03-test-design/test-model-{ts}.yaml`
 - `03-test-design/test-model-{ts}.md`
 - `04-final-report/final-report-{ts}.md`
 
@@ -99,14 +100,13 @@ permission:
 - **QG-D (Качество test-model):** Совпадает с QG3 скилла.
 - **QG-E (Трассировка):** Каждое требование Full/Partial/GAP, доля GAP ≤ `max_gap_ratio`.
 - **QG-F (Качество отчета):** Все секции, ссылки, разбивки по типам, владельцы вопросов из `owners`.
-- **QG-G (Нет нарушений):** Нет записей в Redmine кроме создания задач/кейсов, единый `{ts}`, нет выдачи DRAFT за финал.
+- **QG-G (Нет нарушений):** Нет изменения/удаления задач в Redmine, единый `{ts}`, нет выдачи DRAFT за финал.
 
 # 10. Failure Behaviour
 - **Нет входов:** Запрос пользователю.
 - **Issue пустое:** FAIL, GAP-001, остановка.
 - **Tool упал (Redmine):** Лог в `artifacts/errors/`, частичный артефакт со статусом `INCOMPLETE`, эскалация. 
 - **Redmine недоступен полностью:** Только review, `final-report` PARTIAL, эскалация.
-- **YAML невалиден:** `test-model-DRAFT`, `INVALID_YAML`, эскалация.
 
 # 11. Escalation Rules
 Останавливаешься и запрашиваешь решение человека, если:

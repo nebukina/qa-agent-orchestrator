@@ -12,6 +12,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -50,8 +53,6 @@ public class EvalRunner {
             for (JsonNode evalCase : evalCases) {
                 JsonNode evalInput = evalCase.get("input");
                 String source = evalInput.has("source") ? evalInput.get("source").asText() : "";
-
-                // ИСПРАВЛЕНО: ищем issue_id вместо page_id
                 String pageId = evalInput.has("issue_id") ? evalInput.get("issue_id").asText() : "inline";
 
                 String key = source + "_" + pageId;
@@ -75,13 +76,14 @@ public class EvalRunner {
                 System.out.println("Ключ (ID/Page): " + pageId);
                 System.out.println("Количество Eval Cases: " + pageEvalCases.size() + "\n");
 
-                // PROMPT ДЛЯ QA AGENT
+                // PROMPT ДЛЯ QA AGENT (С учетом правил безопасности)
                 String prompt;
                 if ("inline".equals(source)) {
                     prompt = "Проанализируй следующие требования:\n" + requirementsText;
                 } else {
                     prompt = "Запусти полный флоу для задачи из " + source + " с ID=" + pageId +
-                            " Выполни аудит, ОБЯЗАТЕЛЬНО создай задачи в Redmine через @task и ОБЯЗАТЕЛЬНО создай тест-кейсы через @test, затем собери final-report.ВАЖНО: " +
+                            ". Выполни аудит, создай задачи в Redmine через @task и создай тест-кейсы через @test, затем собери final-report. " +
+                            "ВАЖНО: ЗАПРЕЩЕНО удалять или изменять существующие задачи. " +
                             "Не проверяй связи (relations) и custom_fields, их отсутствие не является ошибкой.";
                 }
 
@@ -89,7 +91,7 @@ public class EvalRunner {
                 ProcessBuilder pb = new ProcessBuilder(
                         "cmd.exe", "/c",
                         "C:\\Users\\User\\AppData\\Roaming\\npm\\opencode.cmd",
-                        "run", "--format", "json", "--auto" // Промпт убран из аргументов
+                        "run", "--format", "json", "--auto"
                 );
                 pb.directory(projectPath.toFile());
                 pb.redirectErrorStream(true);
@@ -305,10 +307,28 @@ public class EvalRunner {
         System.out.println("\nQUALITY GATE STATUS: " + overallStatus);
         System.out.println("=".repeat(80));
 
-        Path resultsDir = Paths.get("results");
-        Files.createDirectories(resultsDir);
-        Path resultsFile = resultsDir.resolve("eval_results.json");
+        // =============================================================
+        // СОХРАНЕНИЕ JSON (Обновленная структура папок: current / history)
+        // =============================================================
+        Path artifactsDir = Paths.get("artifacts");
+        Path currentDir = artifactsDir.resolve("current");
+        Path historyDir = artifactsDir.resolve("history");
 
+        // 1. Создаем нужные папки, если их нет
+        Files.createDirectories(currentDir);
+        Files.createDirectories(historyDir);
+
+        Path currentResultsFile = currentDir.resolve("eval_results.json");
+
+        // 2. Если файл в current уже существует, переносим его в history
+        if (Files.exists(currentResultsFile)) {
+            String oldTs = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+            Path archivedFile = historyDir.resolve("eval_results-" + oldTs + ".json");
+            Files.move(currentResultsFile, archivedFile, StandardCopyOption.REPLACE_EXISTING);
+            System.out.println("Старые результаты перемещены в историю: " + archivedFile.toAbsolutePath());
+        }
+
+        // 3. Формируем новый отчет
         ObjectNode report = mapper.createObjectNode();
         ObjectNode summary = report.putObject("summary");
         summary.put("total", total);
@@ -358,8 +378,9 @@ public class EvalRunner {
 
         report.set("results", mapper.valueToTree(evalResults));
 
-        mapper.writerWithDefaultPrettyPrinter().writeValue(resultsFile.toFile(), report);
+        // 4. Сохраняем в current
+        mapper.writerWithDefaultPrettyPrinter().writeValue(currentResultsFile.toFile(), report);
 
-        System.out.println("\nРезультаты сохранены: " + resultsFile.toAbsolutePath());
+        System.out.println("\nРезультаты сохранены: " + currentResultsFile.toAbsolutePath());
     }
 }
