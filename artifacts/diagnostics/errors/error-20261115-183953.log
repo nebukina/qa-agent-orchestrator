@@ -1,0 +1,33 @@
+[20261115-183953] Агент: test (скилл test-design) · Проект: «Страница логина» (identifier: login, ID 1) · Родитель: #72
+
+ОШИБКА ПУБЛИКАЦИИ ТЕСТ-КЕЙСОВ (эскалация по п.11 Escalation Rules скилла test-design)
+Код (по смыслу ответа MCP): 401/403 — WRITE_FORBIDDEN (Read-only credential)
+Сообщение Redmine MCP (стабильно, 3 из 3 попыток): "Credenciales inválidas o sin permiso para esta acción."
+
+Хронология диагностических вызовов:
+1) ЧТЕНИЕ — успешно:
+   - list_projects → "#2 — Лендинг (landing)", "#1 — Страница логина (login)"
+   - list_metadata(kind=trackers) → #1 TestCase, #2 Task; с project_id=login — оба разрешены
+   - list_metadata(kind=priorities) → #1 Minor, #2 Major, #3 Critical
+   - list_metadata(kind=statuses) → #1 ToDo, #2 InCoding, #3 InTesting, #4 Ready(cerrado), #5 ReadyForTest
+   - list_issues(project_id=login, limit=100) → 46 issues; из них tracker TestCase — 26 (#88…#114)
+   - get_issue(#72, #88, #89, #90, #91, #94, #95, #98, #102, #103, #104, #105, #106, #107, #111, #112, #114) — успешно
+2) ЗАПИСЬ — отклонено (0 успешных операций):
+   - attempt#1 create_issue(project_id="login", tracker_id=1, priority_id=2, parent_issue_id=72, subject="[TC] Поле «Пароль» имеет атрибут required … (positive)") → ошибка
+   - attempt#2 create_issue(project_id="login", tracker_id=1, priority_id=2, БЕЗ parent_issue_id, description="probe") → та же ошибка
+     (исключено влияние иерархии и объёма description)
+   - attempt#3 create_issue(project_id="1" — числовой ID, tracker_id=1, priority_id=2) → та же ошибка
+     (исключено влияние формата project_id)
+   - list_metadata(kind="me") → та же ошибка (эндпоинт currentUser недоступен тому же ключу)
+
+ВЫВОД: API-ключ MCP имеет права на чтение (GET), но не имеет прав на создание (POST /issues.json) — либо роль пользователя без разрешения «Add issues», либо ключ read-only. Проблема не в payload, не в трекере и не в формате project_id.
+
+ДЕЙСТВИЯ АГЕНТА:
+- Создание кейсов остановлено (п.10 Failure Behaviour: «Ошибка API при создании кейса → лог, остановка, эскалация»).
+- Ни одной записи (create/update/delete) в Redmine не выполнено; существующие issues и заметки не изменялись.
+- Полная проектная модель сохранена в artifacts/03-test-design/test-model-20261115-183953.md (статус INCOMPLETE) — готова к публикации вербатим после восстановления прав.
+- Дубликаты не создавались (QG3 п.9): покрытие RQ-01/RQ-04/RQ-05 частично уже существует в Redmine (#88, #89, #90, #91, #94, #98, #106, #111, #112).
+
+ЭСКАЛАЦИЯ ОРКЕСТРАТОРУ / ОПЕРАТОРУ:
+- Требуется выдать MCP-ключу право на создание issues в проекте login (разрешение «Add issues» для роли) либо иной ключ.
+- После восстановления прав — повторить прогон test-design с тем же report-ts=20261115-183953, публикуя TC-01…TC-06 из артефакта без изменений.

@@ -1,0 +1,52 @@
+=== Redmine publication error log ===
+run_ts: 20261115-223845
+agent: task (skill: task-design)
+project: Страница логина (id=1, identifier=login)
+source_issue: #119
+date: 2026-11-15
+
+--- DIAGNOSTICS: READ (all OK) ---
+list_projects                          -> OK (2 projects: #1 Страница логина [login], #2 Лендинг [landing])
+list_metadata kind=trackers            -> OK (#1 TestCase, #2 Task)   [NOTE: no Epic/Story trackers in instance]
+list_metadata kind=priorities          -> OK (#1 Minor, #2 Major, #3 Critical)
+list_metadata kind=statuses            -> OK (#1 ToDo, #2 InCoding, #3 InTesting, #4 Ready(closed), #5 ReadyForTest)
+list_issues project_id=login           -> OK (33 issues enumerated for duplicate scan)
+get_issue id=119 (summary)             -> OK
+get_issue ids 118,120,121,123,124,125,127,128 -> OK
+list_metadata kind=categories          -> OK (project login has no categories)
+
+--- DIAGNOSTICS: DENIED (permission/auth class error) ---
+list_metadata kind=custom_fields       -> ERROR: Credenciales inválidas o sin permiso para esta acción.
+list_metadata kind=me                  -> ERROR: Credenciales inválidas o sin permiso para esta acción.
+
+--- WRITE ATTEMPTS (all FAILED, deterministic) ---
+[attempt 1] create_issue project_id=login tracker_id=2 priority_id=1
+            subject="Реализовать страницу авторизации по требования источника #119 [EPIC]"
+            -> ERROR: Credenciales inválidas o sin permiso para esta acción.
+[attempt 2] create_issue (same payload, shortened description)
+            -> ERROR: Credenciales inválidas o sin permiso para esta acción.
+[attempt 3] create_issue MINIMAL payload (project_id + subject + description only, no tracker/priority)
+            -> ERROR: Credenciales inválidas o sin permiso para esta acción.
+
+Result: 0 of 7 planned issues created. Failure is payload-independent => API token lacks write
+scope (and lacks /users/current + custom_fields read). Historical issues #122..#148 prove writes
+worked in earlier runs => credentials/role were changed after those runs.
+
+--- POLICY COMPLIANCE DURING FAILURE ---
+- No update/delete/status/priority/assignee operations were attempted on ANY existing issue
+  (including source #119). No add_issue_relation touching #119. No watchers touched.
+- No entities were deleted. Nothing was created, therefore nothing needs [OBSOLETE] marking.
+- Failure behaviour per skill §10: "Ошибка API при создании задачи -> лог, остановка, эскалация".
+- Escalation rule §11 applied: authorization error (401/403-class) on issue creation.
+
+--- REMEDIATION HINTS FOR ORCHESTRATOR / OPERATOR ---
+1. Regenerate or re-supply the Redmine API key for the MCP server with a user that has
+   "Add/Edit issues" permission in project "Страница логина" (login).
+2. Verify the MCP user's role: Tracker "Task" must be enabled for the project (it is, per read),
+   and Priority Minor/Major/Critical assignable.
+3. Re-run stage 02 (task-design) with the same ts=20261115-223845 once write access is restored:
+   the full ready-to-publish design is stored in artifacts/02-task-design/task-spec-20261115-223845.md
+   (section 5 contains final subject+description payloads).
+4. Publication order matters: create EPIC first, then reuse its numeric ID as parent_issue_id
+   for the 4 stories and 2 GAP stubs.
+=== end of log ===

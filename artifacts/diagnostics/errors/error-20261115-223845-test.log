@@ -1,0 +1,47 @@
+=== Redmine publication error log ===
+run_ts: 20261115-223845
+agent: test (skill: test-design)
+source_requirement: Redmine issue #119, project «Страница логина» (identifier: login, id=1)
+prepared_at: 2026-11-15 (session of run ts=20261115-223845)
+
+--- Context ---
+Planned entities: 5 test cases (tracker TestCase #1) + 8 GAP stubs (tracker Task #2), all in project "login", parent_issue_id=119.
+No destructive operations were attempted: no update_issue / change_issue_status / delete_* / remove_* / add_note on any existing issue.
+Read-only calls succeeded (list_projects, list_metadata trackers/priorities, list_issues, get_issue x11).
+
+--- Failures (chronological) ---
+[E1] tools.redmine.create_issue  TK-01  REQ-003a positive
+     -> Error: Credenciales inválidas o sin permiso para esta acción.
+[E2] tools.redmine.create_issue  TK-02  REQ-003a negative
+     -> Error: Credenciales inválidas o sin permiso para esta acción.
+[E3] tools.redmine.create_issue  TK-03  REQ-003b negative
+     -> Error: Credenciales inválidas o sin permiso para esta acción.
+[E4] tools.redmine.create_issue  TK-04  REQ-003c positive
+     -> Error: Credenciales inválidas o sin permiso para esta acción.
+[E5] tools.redmine.create_issue  TK-05  REQ-003c negative
+     -> Error: Credenciales inválidas o sin permiso para esta acción.
+[E6] tools.redmine.create_issue  TK-01 (single retry, reduced payload)
+     -> Error: Credenciales inválidas o sin permiso para esta acción.
+[E7] tools.redmine.list_metadata(kind="me")  (diagnostic identity probe)
+     -> Error: Credenciales inválidas o sin permiso para esta acción.
+
+--- Diagnosis ---
+error_code: REDMINE_WRITE_FORBIDDEN (authorization class, HTTP 401/403 equivalent)
+Evidence:
+  * All POST /issues attempts rejected with the same permission error (5 distinct payloads + 1 retry) -> not payload-dependent.
+  * GET /users/current.json (kind=me) also rejected -> token-level scope limitation, not tracker/priority misconfiguration.
+  * Read endpoints (projects, trackers, priorities, issues) work -> API key is valid but lacks write/troubleshoot scope.
+  * Trackers verified as enabled in project "login": #1 TestCase, #2 Task. Priorities verified: #1 Minor, #2 Major, #3 Critical.
+Conclusion: publication of test cases is impossible with the currently configured credentials. Cause is environmental (permissions), not a defect of the test model.
+
+--- Action taken (per skill §10 Failure Behaviour / §11 Escalation Rules) ---
+* Creation loop stopped after confirmation of systemic denial (no further write attempts, to avoid noisy retries).
+* No entities were created; therefore no [OBSOLETE] marking was necessary.
+* Full designed model preserved in artifacts/03-test-design/test-model-20261115-223845.md (ready for one-shot republication).
+* QG3 downgraded: criterion "все запланированные кейсы успешно созданы в Redmine (есть ID)" NOT MET -> QG3 = FAIL, status = INCOMPLETE.
+* ESCALATION TO ORCHESTRATOR/USER: grant the Redmine API user the "Issues" write permission (or supply a token with write scope) for project "login", then rerun publication of the prepared payloads.
+
+--- Explicitly NOT done (constraints respected) ---
+* No modifications/deletions/status changes of existing issues (#119 and others untouched).
+* No custom_fields / relations requirements imposed (per operator instruction their absence is not an error).
+* No credentials or tokens printed in this log or in the test model.

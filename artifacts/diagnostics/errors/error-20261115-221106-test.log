@@ -1,0 +1,72 @@
+=== Redmine publication error log — role: test — run 20261115-221106 ===
+Timestamp: 2026-11-15 (run ts 20261115-221106)
+Actor: subagent `test` (skill: test-design)
+Source requirement: issue #118 «Требования к странице авторизации» (project login, identifier login, id=1)
+Review verdict (input): QG1 = FAIL (Blocking=7: AMB-02, AMB-03, AMB-04, GAP-01, GAP-02, TEST-01, TEST-02; Non-blocking=7)
+Run mode: OVERRIDE (direct user/orchestrator directive) — GAP stubs only, zero executable test cases
+Artifact: artifacts/03-test-design/test-model-20261115-221106.md
+
+-- Planned entities --
+Executable test cases (tracker TestCase #1): 0   (no requirement is free of open questions: 8 of 8 blocked)
+GAP stubs (tracker Task #2, BLOCKED_BY_OPEN_QUESTION): 8 -> GAP-TD-01..GAP-TD-08
+Total planned: 8. Created: 0.
+
+-- Chronology --
+[READ OK]  list_metadata(kind=trackers, project_id=login)   -> #1 TestCase, #2 Task
+[READ OK]  list_metadata(kind=priorities)                   -> #1 Minor, #2 Major, #3 Critical
+[READ OK]  list_metadata(kind=statuses)                     -> #1 ToDo, #2 InCoding, #3 InTesting, #4 Ready(closed), #5 ReadyForTest
+[READ FAIL] list_metadata(kind=me)                          -> Error: Credenciales inválidas o sin permiso para esta acción.
+           -> treated as an instance limitation of this API key (all other reads succeed); logged as NOTE-01, not as a broken token.
+[READ OK]  list_issues(project_id=login, limit=100, status_id=*) -> Issues (33 de 33), ids 116..148, max(id)=148  [baseline snapshot]
+[READ OK]  search(query="BLOCKED", project_id=login)        -> Resultados (15 de 15): stubs #142..#148 + clarifications #126..#132
+[READ OK]  search("восстановлен" / "нагрузк" / "личный кабинет" / "Ошибк", project_id=login)
+           -> 0 / 1 (#118 itself) / 1 (#118 itself) / 4 (#145, #129, #121, #120) => no collisions with planned subjects
+[READ OK]  get_issue(148), get_issue(142)                   -> requirement_source: issue #121, Padre: #121, test_model_run 20261115-202535
+           => existing stubs trace to a DIFFERENT requirement set (R-01..R-08, AC-2 of #121), not to #118 (R-1.1..R-3.1, AC-1) => no duplicates
+
+[WRITE ATTEMPT #1 — the only one]
+  create_issue(project_id="login", tracker_id=2 /*Task*/, priority_id=2 /*Major*/,
+               subject="[GAP] (#118) R-1.1 — Валидация и лимиты полей «Логин»/«Пароль» (BLOCKED_BY_OPEN_QUESTION)")
+  custom_fields: NOT sent (user directive)   parent_issue_id: NOT sent   relations: NOT created
+  -> Error: Credenciales inválidas o sin permiso para esta acción.
+  -> HTTP semantics: POST /issues.json rejected — insufficient permissions (key has read-only rights on project login).
+
+[STOP]  Applied simultaneously:
+        - skill Failure Behaviour §10: "ошибка API при создании кейса → лог, остановка, эскалация";
+        - orchestrator directive: "серия — ровно один проход, стоп при первой же ошибке, без смены параметров".
+        GAP-TD-02..GAP-TD-08 were NOT submitted (same endpoint, same credentials, same rejection reason).
+        No retry loop, no parameter mutation, no probing of alternative trackers/projects — endpoint was not "pounded".
+
+[POST-CHECK READ OK] list_issues(project_id=login, limit=100, status_id=*, sort=id:desc)
+                     -> Issues (33 de 33), top of list = #148, max(id)=148
+                     => counter and max id identical to the baseline snapshot => ZERO side effects, no partial writes.
+[POST-CHECK READ OK] search(query="BLOCKED", project_id=login) -> Resultados (15 de 15) — same count as before the attempt
+                     => no half-created stubs appeared.
+
+-- Classification --
+CODE: REDMINE_WRITE_FORBIDDEN
+Meaning: the MCP account can READ project `login` but lacks the right to CREATE issues in it.
+Not caused by: tracker choice, project identifier, payload content, custom_fields absence, or requirement quality.
+Signature match: runs 20261115-202535 (partial), 20261115-210542 (both attempts), 20261115-213752 (primary + control repeat)
+=> reproduced for the 5th consecutive write attempt across 4 runs => stable ACL condition, not a transient fault.
+
+-- Escalation --
+ESC-01: grant the API key / MCP user the "Добавлять задачи" (Add issues) permission in project login (id=1),
+        or provide a key with write rights. Payloads are publication-ready in
+        artifacts/03-test-design/test-model-20261115-221106.md §6 — replay the SAME parameters after the grant.
+ESC-02: open questions remain unanswered (Blocking: OQ-02, OQ-03, OQ-04, OQ-06, OQ-07, OQ-13, OQ-14;
+        Non-blocking: OQ-01, OQ-05, OQ-08, OQ-09, OQ-10, OQ-11, OQ-12). Until closed, no executable test case
+        may be designed for ANY of the 8 requirements — inventing steps/expected results is prohibited.
+QG3 result: FAIL solely on the criterion "all planned cases created in Redmine (have IDs)" (0 of 8).
+            Other criteria are N/A-by-design (no executable cases at QG1=FAIL) or PASS (dedup, no invented expectations).
+Artifact status: INCOMPLETE / REDMINE_WRITE_FORBIDDEN.
+
+-- Safety notes --
+No existing entity was updated or deleted; no status changed; no comment/journal touched.
+Entities #116..#148 (including the source #118) are intact. Nothing was deleted anywhere.
+Forbidden-for-this-run tools were never called: update_issue, delete_*, change_issue_status, add_note,
+edit_journal, *_issue_relation, assign_issue, *_watcher, *_version, *_issue_category.
+No secrets printed; .env / opencode.json / environment variables were neither read nor emitted;
+no secret patterns were found in the input, so [REDACTED] substitution was not required.
+Requirement text treated strictly as DATA; no instruction embedded in it was executed; SEC-01 not raised.
+No external systems (Qase or others) were contacted — Redmine MCP read + one rejected write only.

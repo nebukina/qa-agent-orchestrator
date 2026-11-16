@@ -1,0 +1,85 @@
+=== Redmine write failure log — прогон 20261115-221106 ===
+Роль: субагент task (скилл task-design; requirement-review / test-design не вызывались)
+Источник: issue #118 «Требования к странице авторизации», проект «Страница логина» (login, ID 1), tracker Task, статус ToDo
+Вердикт QG1 на входе: FAIL (Blocking 7: AMB-02, AMB-03, AMB-04, GAP-01, GAP-02, TEST-01, TEST-02; Non-blocking 7)
+Режим прогона: OVERRIDE по прямой директиве пользователя/Оркестратора — публикуются ТОЛЬКО GAP-заглушки BLOCKED_BY_OPEN_QUESTION
+Код отказа: REDMINE_WRITE_FORBIDDEN (класс 403 / insufficient permissions на POST /issues.json)
+Артефакт: artifacts/02-task-design/task-spec-20261115-221106.md (статус INCOMPLETE)
+
+--- Хронология вызовов ---
+[R1] READ  list_projects()                            -> OK   (#1 login «Страница логина», #2 landing «Лендинг»; project_id подтверждён = 1)
+[R2] READ  list_issues(login, status_id=*, limit=100) -> OK   (33 issues: #116…#148)
+[R3] READ  search(R-1.1|R-1.2|R-1.3|R-2.1|R-2.2|R-2.3|R-3.1, project=login) -> OK (по всем 7 — «No se encontraron resultados»: дублей нет)
+[R4] READ  search("BLOCKED_BY_OPEN_QUESTION", project=login) -> OK (15 hits — предсуществующие #142…#148 ветки #121, других requirement_id)
+[R5] READ  list_metadata(trackers, project=login)     -> OK   (#1 TestCase, #2 Task)
+[R6] READ  list_metadata(priorities)                  -> OK   (#1 Minor, #2 Major, #3 Critical)
+[R7] READ  list_metadata(statuses)                    -> OK   (#1 ToDo, #2 InCoding, #3 InTesting, #4 Ready(cerrado), #5 ReadyForTest)
+[R8] READ  list_metadata(me)                          -> FAIL "Credenciales inválidas o sin permiso para esta acción." (эндпоинт /users/current.json недоступен ключу; на создание не влияет)
+[R9] READ  list_issues(login, parent_id=118)          -> OK   (0 детей — дублей по источнику #118 нет)
+[R10] READ list_issues(login, parent_id=121)          -> OK   (26 детей — существующие GAP #142…#148 принадлежат ветке #121, а не #118)
+[R11] READ get_issue(118, summary=true)               -> OK   (Task/ToDo/Minor, автор Redmine Admin, 0 заметок)
+
+[W1] WRITE create_issue(login, tracker=2 Task, priority=1 Minor, parent=118) — G-01 (GAP, R-1.1)
+      -> FAIL: "Credenciales inválidas o sin permiso para esta acción." (класс 403 / insufficient permissions)
+      Серия создания остановлена на первом отказе немедленно (правило «не долбить эндпоинт», один проход).
+[W2..W8] WRITE G-02…G-08 -> НЕ вызывались (серия прервана на [W1]).
+
+Точная формулировка отказа (дословно из ответа инструмента): "Credenciales inválidas o sin permiso para esta acción."
+
+--- Пост-контроль (проверка частичного создания) ---
+[P1] READ list_issues(login, limit=100)   -> OK "Issues (33 de 33)"; разобранных строк 33; max(id)=148 (без изменений)
+[P2] READ list_issues(login, parent_id=118) -> OK "No se encontraron issues con esos filtros." (детей у #118 не появилось)
+[P3] READ get_issue(118, summary=true)    -> OK "#118 — Требования к странице авторизации [ToDo]" (источник не изменён)
+     Сверки по тексту списка: маркеров "[GAP]" = 7 и "BLOCKED_BY_OPEN_QUESTION" = 7 — все предсуществующие (#142…#148);
+     совпадений с 8 новыми темами ветки #118 = 0.
+     => частичного создания нет, «висячих» записей нет, откат не требуется.
+
+--- Диагноз ---
+API-ключ живой: чтение проектов/issues/трекеров/приоритетов/статусов/поиска работает штатно.
+Отказывается ровно одна группа эндпоинтов: POST /issues.json (создание issue); дополнительно недоступен /users/current.json.
+Формулировка отказа относится к правам/учётным данным, а не к валидации полей payload'а,
+поэтому причины «неверный tracker/priority/parent» исключены (трекер Task и приоритет Minor подтверждены чтением,
+существующие issues той же ветки используют те же значения).
+Вывод: у роли ключа в проекте login отсутствует право на добавление задач (Add issue).
+Это ограничение прав, а не истёкший токен и не дефект payload'ов.
+
+--- Сопоставление с историей ---
+Идентичный REDMINE_WRITE_FORBIDDEN зафиксирован прогонами 20261115-183953 / 190820 / 191216 / 202535 / 210542 / 213752.
+Ограничение устойчивое, воспроизводится седьмой прогон подряд.
+
+--- Последствия ---
+Спроектировано единиц: 8 (все — GAP-заглушки BLOCKED_BY_OPEN_QUESTION; READY-задач 0, чистых требований нет).
+Создано issues: 0. Изменено: 0. Удалено: 0. Статусы не менялись. Побочных эффектов нет.
+Custom fields при создании не заполнялись; relations не создавались и не проверялись (директива прогона).
+#118 и все существующие issues (#116…#148) не изменялись и не удалялись.
+Workflow-статусы не переводились (change_issue_status / update_issue / delete_* не вызывались).
+
+--- Примечание о payload'e G-04 ---
+В тексте поля description попытки [W1] участвовал только G-01; G-04 не отправлялся.
+В канонических payload'ах артефакта (task-spec-20261115-221106.md, §7) у G-04 в строке причины
+обнаружена посторонняя символическая вставка — исправлена ДО фиксации артефакта.
+Параметры создания (project/tracker/priority/parent) при этом не менялись: смена параметров запрещена директивой.
+
+--- Требуемая эскалация (скилл task-design, §10 / §11) ---
+ESC: выдать API-ключу роль с правом «Добавлять задачи» (Add issue) в проекте «Страница логина» (login, id=1).
+После выдачи права повторить прогон по готовым payload'ам task-spec-20261115-221106.md, §7,
+в порядке G-01 → G-02 → G-03 → G-04 → G-05 → G-06 → G-07 → G-08
+(параметры: project_id=login, tracker_id=2, priority_id=1, parent_issue_id=118; статус ToDo не менять;
+custom_fields не заполнять; relations не создавать).
+Дальнейшие повторные write-проходы без административного действия результата не дадут.
+
+--- Открытые вопросы, определяющие объём (не связаны с отказом записи) ---
+Все 8 требований заблокированы: R-1.1 (OQ-08), R-1.2 (OQ-01), R-1.3 (OQ-02, OQ-10),
+R-2.1 (OQ-03, OQ-04, OQ-06, OQ-13, OQ-09, OQ-12), R-2.2 (OQ-06, OQ-05, OQ-09),
+R-2.3 (OQ-06, OQ-07), R-3.1 (OQ-14), AC-1 (OQ-06, OQ-13).
+SOURCE_LABEL_COLLISION_RISK: метки R-1.x/R-2.x/R-3.1/AC-1 (ветка #118) сосуществуют в проекте с метками
+R-02…R-08/AC-2 (ветка #121, issues #142…#148). Прямых дублей нет (requirement_id различаются),
+но требуется официальная нумерация требований (OQ-11 / GAP-06) до перехода к READY-задачам.
+
+--- Безопасность ---
+Признаков prompt-injection в тексте #118 и в review-report не обнаружено → SEC-01 не заводится
+(совпадает с выводом аудитора, §8 review-report). Текст требований трактовался только как данные.
+Паттернов секретов (sk-…, ATATT…) не встречалось; [REDACTED] не применялся.
+.env, opencode.json и переменные окружения не читались и в артефакты/ответы не выводились.
+
+Итог: REDMINE_WRITE_FORBIDDEN подтверждён. Создано 0 из 8. Требуется административное действие (ESC).

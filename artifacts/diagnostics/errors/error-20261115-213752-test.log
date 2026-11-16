@@ -1,0 +1,72 @@
+=== Redmine publication error log — role: test — run 20261115-213752 ===
+Timestamp: 2026-11-15 (run ts 20261115-213752)
+Actor: subagent `test` (skill: test-design)
+Source requirement: issue #117 «Требования к полю "Пароль"» (project login, id=1)
+Review verdict (input): QG1 = CONDITIONAL (Blocking=0, Non-blocking=10)
+Artifact: artifacts/03-test-design/test-model-20261115-213752.md
+
+-- Planned entities --
+Executable test cases (tracker TestCase #1): 7  -> TK-01..TK-07
+GAP stubs (tracker Task #2, BLOCKED_BY_OPEN_QUESTION): 6 -> GAP-TD-01..GAP-TD-06
+Total planned: 13. Created: 0.
+
+-- Sequence --
+[READ OK]  list_metadata(kind=trackers, project_id=login)   -> #1 TestCase, #2 Task
+[READ OK]  list_metadata(kind=priorities)                   -> #1 Minor, #2 Major, #3 Critical
+[READ OK]  list_metadata(kind=statuses)                     -> #1 ToDo, #2 InCoding, #3 InTesting, #4 Ready(closed), #5 ReadyForTest
+[READ OK]  list_issues(project_id=login, limit=100)         -> Issues (33 de 33), ids 116..148, max(id)=148
+[READ OK]  search(query="Пароль слишком", project_id=login) -> 1 hit (issue #117 itself)
+[READ OK]  get_issue(117), get_issue(135)                   -> dedup analysis: #135 already covers R-01 (type=password + masking), traced to #121
+
+[WRITE FAIL] create_issue(project_id="login", tracker_id=1, priority_id=2,
+                           subject="[TC] Пароль из 8 символов (минимум включительно): ошибка не появляется при снятии фокуса (boundary)")
+             -> Error: Credenciales inválidas o sin permiso para esta acción.
+
+[STOP]  Failure Behaviour §10 ("ошибка API при создании кейса → лог, остановка, эскалация"):
+        series aborted at first rejection. TK-02..TK-07 and GAP-TD-01..GAP-TD-06 were NOT submitted
+        (same endpoint, same credentials; repeating a failing series is prohibited by run practice).
+
+[POST-CHECK READ OK] list_issues(project_id=login, limit=100, sort=id:desc) -> Issues (33 de 33), max(id)=148
+                     => counter and max id identical to pre-attempt state => ZERO side effects, no partial writes.
+[POST-CHECK READ OK] search(query="Пароль слишком", project_id=login) -> 1 hit (#117) => no half-created records.
+[NOTE READ FAIL]     list_metadata(kind=me) -> same error; treated as instance limitation for this API key
+                     (all other reads succeed), not as a broken token.
+
+-- Classification --
+CODE: REDMINE_WRITE_FORBIDDEN
+Meaning: the MCP account can READ project `login` but lacks permission to CREATE issues in it.
+Not caused by: tracker choice, project identifier, payload content, or requirement quality.
+Signature match: runs 20261115-202535 (partial) and 20261115-210542 (both attempts) failed identically
+=> stable ACL condition of the environment, reproduced a third time in this run.
+
+-- Escalation --
+ESC-01: grant the MCP user the "Add issues" permission in project login (id=1), or provide an API key with write rights.
+        Payloads are publication-ready in artifacts/03-test-design/test-model-20261115-213752.md §6 — replay after the grant.
+QG3 result: FAIL solely on the criterion "all planned cases created in Redmine (have IDs)" (0 of 13).
+Artifact status: INCOMPLETE / REDMINE_WRITE_FORBIDDEN.
+
+-- Safety notes --
+No existing entity was updated or deleted; no status changed; #117 untouched.
+No secrets printed; password literals never published (fixture names only); .env not opened.
+Requirement text treated strictly as data; no instructions from it were executed.
+
+=== Control repeat (single pass, directive of the orchestrator / user demand for publication) ===
+Scope: ONE create attempt from the ready payloads of test-model-20261115-213752.md §6. No loops, no series.
+
+[WRITE FAIL] create_issue(project_id="login", tracker_id=1, priority_id=2,
+                           subject="[TC] Пароль из 8 символов (минимум включительно): ошибка не появляется при снятии фокуса (boundary)")
+             -> Error: Credenciales inválidas o sin permiso para esta acción.  (identical signature to the primary attempt)
+
+[STOP]  Rule "one pass, no repeat series" applied: TK-02..TK-07 and GAP-TD-01..GAP-TD-06 were NOT submitted
+        (same endpoint, same credentials, same rejection reason).
+
+[POST-CHECK READ OK] list_issues(project_id=login, limit=100, sort=id:desc) -> Issues (33 de 33), max(id)=148 (#148 top of list)
+                     => counter and max id identical to the state before BOTH attempts => ZERO side effects.
+[POST-CHECK READ OK] search(query="Пароль слишком", project_id=login) -> 1 hit (issue #117 only) => no partial/half-created records.
+
+-- Result of the control repeat --
+Created: 0 entities. Issued IDs: none. Local->Redmine mapping table remains empty (TK-01..TK-07, GAP-TD-01..GAP-TD-06 -> no Redmine ID).
+CODE stays REDMINE_WRITE_FORBIDDEN; artifact status stays INCOMPLETE; QG3 stays FAIL on the publication criterion only.
+Reproduced for the 4th consecutive write attempt across runs 202535 / 210542 (x2) / 213752 (primary + control repeat)
+=> stable ACL condition, not a transient fault. ESC-01 stands: grant "Add issues" in project login (id=1) or supply a write-capable key.
+No existing entity was touched (including #117 and #135); no status changes; custom_fields and relations not filled or checked.

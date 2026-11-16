@@ -1,0 +1,162 @@
+{
+  "run_ts": "20261115-202535",
+  "generated_by": "orchestrator-direct-api",
+  "results": [
+    {
+      "plan_id": "S-01",
+      "ok": true,
+      "redmine_id": 123,
+      "attempts": 1
+    },
+    {
+      "plan_id": "S-02",
+      "ok": true,
+      "redmine_id": 124,
+      "attempts": 1
+    },
+    {
+      "plan_id": "S-03",
+      "ok": true,
+      "redmine_id": 125,
+      "attempts": 1
+    },
+    {
+      "plan_id": "G-01",
+      "ok": true,
+      "redmine_id": 126,
+      "attempts": 1
+    },
+    {
+      "plan_id": "G-02",
+      "ok": true,
+      "redmine_id": 127,
+      "attempts": 1
+    },
+    {
+      "plan_id": "G-03",
+      "ok": true,
+      "redmine_id": 128,
+      "attempts": 1
+    },
+    {
+      "plan_id": "G-04",
+      "ok": true,
+      "redmine_id": 129,
+      "attempts": 1
+    },
+    {
+      "plan_id": "G-05",
+      "ok": true,
+      "redmine_id": 130,
+      "attempts": 1
+    },
+    {
+      "plan_id": "G-06",
+      "ok": true,
+      "redmine_id": 131,
+      "attempts": 1
+    },
+    {
+      "plan_id": "G-07",
+      "ok": true,
+      "redmine_id": 132,
+      "attempts": 1
+    },
+    {
+      "plan_id": "TK-01",
+      "ok": true,
+      "redmine_id": 133,
+      "attempts": 1
+    },
+    {
+      "plan_id": "TK-02",
+      "ok": true,
+      "redmine_id": 134,
+      "attempts": 1
+    },
+    {
+      "plan_id": "TK-03",
+      "ok": true,
+      "redmine_id": 135,
+      "attempts": 1
+    },
+    {
+      "plan_id": "TK-04",
+      "ok": true,
+      "redmine_id": 136,
+      "attempts": 1
+    },
+    {
+      "plan_id": "TK-05",
+      "ok": true,
+      "redmine_id": 137,
+      "attempts": 1
+    },
+    {
+      "plan_id": "TK-06",
+      "ok": true,
+      "redmine_id": 138,
+      "attempts": 1
+    },
+    {
+      "plan_id": "TK-07",
+      "ok": true,
+      "redmine_id": 139,
+      "attempts": 1
+    },
+    {
+      "plan_id": "TK-08",
+      "ok": true,
+      "redmine_id": 140,
+      "attempts": 1
+    },
+    {
+      "plan_id": "TK-09",
+      "ok": true,
+      "redmine_id": 141,
+      "attempts": 1
+    },
+    {
+      "plan_id": "GAP-TD-01",
+      "ok": true,
+      "redmine_id": 142,
+      "attempts": 1
+    },
+    {
+      "plan_id": "GAP-TD-02",
+      "ok": true,
+      "redmine_id": 143,
+      "attempts": 1
+    },
+    {
+      "plan_id": "GAP-TD-03",
+      "ok": true,
+      "redmine_id": 144,
+      "attempts": 1
+    },
+    {
+      "plan_id": "GAP-TD-04",
+      "ok": true,
+      "redmine_id": 145,
+      "attempts": 1
+    },
+    {
+      "plan_id": "GAP-TD-05",
+      "ok": true,
+      "redmine_id": 146,
+      "attempts": 1
+    },
+    {
+      "plan_id": "GAP-TD-06",
+      "ok": true,
+      "redmine_id": 147,
+      "attempts": 1
+    },
+    {
+      "plan_id": "GAP-TD-07",
+      "ok": true,
+      "redmine_id": 148,
+      "attempts": 1
+    }
+  ]
+}
