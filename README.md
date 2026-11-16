@@ -14,7 +14,6 @@
 - [Quality Gates](#quality-gates)
 - [Оценка агента (Eval Runner)](#оценка-агента-eval-runner)
 - [Безопасность](#безопасность)
-- [Известные ограничения](#известные-ограничения)
 
 ---
 
@@ -39,7 +38,7 @@ qa-orchestrator ──► raw-{ts}.md
 @task (task-design)   ┐ параллельно ┌  @test (test-design)
      │                 └─────────────┘        │
      ▼                                        ▼
-task-spec-{ts}.md                    test-model-{ts}.md / .yaml
+task-spec-{ts}.md                    test-model-{ts}.md
      │                                        │
      └──────────────┬─────────────────────────┘
                     ▼
@@ -70,7 +69,8 @@ task-spec-{ts}.md                    test-model-{ts}.md / .yaml
 ### Прочее
 
 - **`AGENTS.md`** — глобальные правила: ролевая модель, запрет межскилловых вызовов, передача артефактов между агентами, правила для CONDITIONAL, защита от Prompt Injection и утечки секретов, ограничения на действия в Redmine.
-- **`opencode.json`** — конфигурация OpenCode: MCP-сервер Redmine [`@speraltafibrazo/redmine-mcp`](https://www.npmjs.com/package/@speraltafibrazo/redmine-mcp) (`REDMINE_URL` по умолчанию `http://localhost:3000`, API-ключ берется из переменной окружения `REDMINE_KEY`).
+- **`opencode.json`** — конфигурация OpenCode: локальный MCP-сервер Redmine [`@speraltafibrazo/redmine-mcp`](https://www.npmjs.com/package/@speraltafibrazo/redmine-mcp) (`REDMINE_URL` по умолчанию `http://localhost:3000`).
+- **`.opencode/redmine-mcp-launch.mjs`** — launcher этого MCP-сервера: читает `.env` проекта, проверяет каждый кандидат ключа живым запросом `GET /users/current.json` и запускает пакет только с аутентифицированным ключом. Нужен потому, что OpenCode не раскрывает `{env:REDMINE_KEY}` в блоке `environment` локального сервера (см. [Известные ограничения](#известные-ограничения)); без launcher'а агент молча работает анонимно: чтение публичного проекта доступно, любая запись отклоняется.
 - **`pom.xml` / `src/main/java/evals/`** — Maven-модуль `qa-eval-runner` (Java 17, Jackson): оценочный контур агента.
 - **`package.json`** — Node-зависимости (`dotenv`) для загрузки `.env` со секретами.
 
@@ -84,12 +84,12 @@ task-spec-{ts}.md                    test-model-{ts}.md / .yaml
 │   │   ├── review.md            # Субагент (только requirement-review)
 │   │   ├── task.md              # Субагент (только task-design)
 │   │   └── test.md              # Субагент (только test-design)
-│   └── skills/
-│       ├── requirement-review/  # Логика аудита требований (QG1)
-│       ├── task-design/         # Логика проектирования задач (QG2)
-│       └── test-design/         # Логика проектирования тест-кейсов (QG3)
-├── artifacts/                   # Артефакты прогонов (создается автоматически)
-├── results/                     # Результаты прогонов eval-контюра (eval_results.json)
+│   ├── skills/
+│   │   ├── requirement-review/  # Логика аудита требований (QG1)
+│   │   ├── task-design/         # Логика проектирования задач (QG2)
+│   │   └── test-design/         # Логика проектирования тест-кейсов (QG3)
+│   └── redmine-mcp-launch.mjs   # Launcher MCP Redmine: берет ключ из .env и проверяет его живым запросом
+├── artifacts/                   # Артефакты прогонов и результаты eval-контюра (создается автоматически)
 ├── src/main/java/evals/
 │   ├── EvalRunner.java          # Прогон агента по golden dataset
 │   └── Evaluator.java           # LLM-судья (judge) ответов агента
@@ -119,12 +119,18 @@ task-spec-{ts}.md                    test-model-{ts}.md / .yaml
 # 1. Установка Node-зависимостей
 npm install
 
-# 2. Настройка доступа к Redmine: создать .env в корне проекта
-#    (файл .env исключен из git через .gitignore)
+# 2. Доступ к Redmine: создать .env в корне проекта (файл исключен из git через .gitignore)
 #    REDMINE_KEY=<ваш API-ключ Redmine>
-#    При необходимости поменять REDMINE_URL в opencode.json
+#    При необходимости поменять REDMINE_URL (по умолчанию http://localhost:3000)
+#    Launcher .opencode/redmine-mcp-launch.mjs возьмет ключ из .env сам, экспортировать
+#    переменную в окружение оболочки не требуется.
 
-# 3. (Опционально, для eval-контюра) сборка Java-модуля
+# 3. Проверка канала (только чтение, ни одной записи в Redmine): в сессии OpenCode
+#    запросить list_metadata kind=me. Ответ вида "#1 — <login> (<имя>)" означает, что
+#    ключ доставлен и аутентифицирован. Ответ "Credenciales inválidas o sin permiso
+#    para esta acción." — ключ не доставлен или не имеет прав, см. «Известные ограничения».
+
+# 4. (Опционально, для eval-контюра) сборка Java-модуля
 mvn clean compile
 ```
 
@@ -133,13 +139,13 @@ mvn clean compile
 Открыть проект в OpenCode и дать оркестратору ID или ссылку на issue с требованиями, например:
 
 ```
-Запусти полный флоу для задачи Redmine #72
+Запусти полный флоу для задачи Redmine #120
 ```
 
 Либо неинтерактивно (так же, как это делает EvalRunner):
 
 ```powershell
-opencode run --auto "Запусти полный флоу для задачи Redmine #72"
+opencode run --auto "Запусти полный флоу для задачи Redmine #120"
 ```
 
 Оркестратор выполнит цепочку Ingestion → Audit (QG1) → параллельно Task/Test → Final Report, и сложит результаты в `artifacts/<этап>/` с единым timestamp `{ts}` прогона.
@@ -150,13 +156,18 @@ opencode run --auto "Запусти полный флоу для задачи Re
 
 ```
 artifacts/
-├── 00-raw-requirements/   raw-{ts}.md           # снимок требований из Redmine
-├── 01-requirement-review/ review-report-{ts}.md # вердикт QG1, Blocking/Non-blocking проблемы
-├── 02-task-design/        task-spec-{ts}.md      # спецификация задач (+ созданные задачи в Redmine)
-├── 03-test-design/        test-model-{ts}.md/.yaml # тестовая модель (+ кейсы в Redmine)
-├── 04-final-report/       final-report-{ts}.md   # итог: метрики, матрица трассировки, Open Questions
-└── errors/                *.md                   # логи сбоев инструментов (Redmine и др.)
+├── 00-raw-requirements/   raw-{ts}.md                 # снимок требований из Redmine
+├── 01-requirement-review/ review-report-{ts}.md       # вердикт QG1, Blocking/Non-blocking проблемы
+├── 02-task-design/        task-spec-{ts}.md           # спецификация задач (+ созданные задачи в Redmine)
+├── 03-test-design/        test-model-{ts}.md          # тестовая модель (+ кейсы в Redmine)
+├── final-report-{ts}.md                               # итог: метрики, матрица трассировки, Open Questions
+├── current/               eval_results.json           # сводка eval-контюра последнего прогона
+├── history/{ts}/          *                           # архив артефактов завершенного прогона
+└── diagnostics/           errors/error-{ts}.log       # логи сбоев инструментов (Redmine и др.)
+                         publish-results-{ts}.json    # машинный лог публикации в Redmine
 ```
+
+По правилу `AGENTS.md` артефакты прогона копируются в `current/` только при `QG4 = PASS`, а перед новым прогоном старые файлы переносятся в `history/{ts}/`. `final-report-{ts}.md` пишется в корень `artifacts/`, а не в подкаталог.
 
 Обязательные секции `final-report`: метаданные, Review Summary, Task Summary, Test Summary, матрица трассировки (Requirement → Task → Test с покрытием Full/Partial/GAP), Open Questions/Gaps с владельцами.
 
@@ -185,7 +196,7 @@ artifacts/
 | Forbidden Behavior Violation Rate | 0% |
 | Errors | 0 |
 
-Результат сохраняется в `results/eval_results.json`.
+Результат сохраняется в `artifacts/current/eval_results.json`; сводка предыдущего прогона архивируется в `artifacts/history/eval_results-{ts}.json`.
 
 ### Golden dataset (EVC-001…EVC-006)
 
@@ -205,7 +216,7 @@ mvn clean compile
 mvn exec:java -Dexec.mainClass="evals.EvalRunner"
 ```
 
-Перед прогоном необходимы: живой Redmine с задачами из датасета (например, #72, #116) и установленный `opencode` в PATH.
+Перед прогоном необходимы: живой Redmine с задачами из датасета (`issue_id` в `golden_dataset.json`: #116, #117, #118, #119, #120, #121) и установленный `opencode` в PATH.
 
 ## Безопасность
 

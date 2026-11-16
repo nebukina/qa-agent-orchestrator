@@ -4,11 +4,10 @@
     "servers": {
       "redmine": {
         "type": "local",
-        "command": ["npx", "-y", "@speraltafibrazo/redmine-mcp"],
-        "enabled": true,
+        "command": ["node", ".opencode/redmine-mcp-launch.mjs"],
+        "cwd": ".",
         "environment": {
-          "REDMINE_URL": "http://localhost:3000",
-          "REDMINE_API_KEY": "{env:REDMINE_KEY}"
+          "REDMINE_URL": "http://localhost:3000"
         }
       }
     }
