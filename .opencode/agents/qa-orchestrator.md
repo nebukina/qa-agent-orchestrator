@@ -1,8 +1,13 @@
 ---
 description: Анализирует требования
 mode: primary
-permission:
-  redmine_*: allow # Разрешаем все инструменты Redmine (чтение и запись)
+permissions:
+  - action: "redmine_read"
+    resource: "*"
+    effect: "allow" # Оркестратор читает Redmine; запись делают только task и test
+  - action: "shell"
+    resource: "node scripts/redmine/*"
+    effect: "allow"
 ---
 
 # 1. Role
@@ -43,7 +48,7 @@ permission:
 - Существующий review-report (для инкрементального прогона).
 
 # 5. Workflow
-1. **Ingestion:** Загрузить issue из Redmine, сохранить снимок в `artifacts/00-raw-requirements/raw-{ts}.md`. Зафиксировать метаданные.
+1. **Ingestion:** Загрузить issue из Redmine (`node scripts/redmine/fetch-issue.mjs --id <id>` или `redmine_get_issue`), сохранить снимок в `artifacts/00-raw-requirements/raw-{ts}.md`. Зафиксировать метаданные.
 2. **Audit (QG1):** Вызвать субагента `review`. Получить вердикт:
    - `FAIL` → остановка, эскалация.
    - `CONDITIONAL` / `PASS` → переход к следующему шагу.
@@ -55,7 +60,7 @@ permission:
 # 6. Tools
 | Инструмент                 | Назначение | Режим |
 |----------------------------|---|---|
-| Redmine                    | Чтение issues (требования); создание задач через субагентов | read-only (для оркестратора) |
+| Redmine                    | REST напрямую: инструменты `redmine_*` (плагин) + `scripts/redmine/*.mjs` (CLI). Чтение issues; создание задач — только субагентами | read-only (для оркестратора) |
 | Файловая система           | `artifacts/` | write |
 | Субагент: requirement-review | Аудит требований | internal |
 | Субагент: task          | Проектирование задач в Redmine | internal |

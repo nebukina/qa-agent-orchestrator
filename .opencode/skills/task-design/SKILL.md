@@ -12,7 +12,7 @@ description: проектирование и создание задач в Redm
 - Формулировка Summary с глагола и AC в Given-When-Then.
 - Присвоение `requirement_id`, оценка XS/S/M/L.
 - Проверка зависимостей на циклы.
-- **Создание задач в Redmine через MCP-инструменты.**
+- **Создание задач в Redmine через нативные инструменты `redmine_*` (REST напрямую) и CLI-батч `scripts/redmine/publish.mjs`.**
 - Формирование `task-spec-{ts}.md` (как отчет о проделанной работе).
 
 # 3. Scope
@@ -20,7 +20,7 @@ description: проектирование и создание задач в Redm
 - Проектирование структуры задач.
 - Написание AC.
 - Оценка.
-- Создание задач в Redmine (через MCP).
+- Создание задач в Redmine (через `redmine_create_issue` или батч-публикацию).
 
 **Не входит:**
 - Изменение workflow-статусов задач в Redmine (перевод в "In Progress" и т.д.).
@@ -37,13 +37,18 @@ description: проектирование и создание задач в Redm
 3. Сформулировать Summary (с глагола), AC для Story.
 4. Присвоить `requirement_id`, оценить XS/S/M/L (XL → декомпозиция).
 5. Проверить циклы зависимостей.
-6. **Создание задач в Redmine:** Используя MCP-инструменты (например, `redmine_create_issue`), последовательно создай задачи в нужном проекте.
+6. **Создание задач в Redmine:** спроектированную иерархию запиши в манифест `artifacts/02-task-design/task-manifest-{ts}.json` и опубликуй её батчем:
+   `node scripts/redmine/publish.mjs --manifest artifacts/02-task-design/task-manifest-{ts}.json`
+   (сначала можно `--dry-run`). Либо создавай задачи по одной инструментом `redmine_create_issue`.
     - В поле "Описание" каждой задачи обязательно добавь `requirement_id`.
+    - Родителя задавай через `parent_key`: родитель создаётся раньше ребёнка.
+    - Читай `artifacts/diagnostics/publish-results-{ts}.json`: там реальные ID и предупреждения (`PARENT_DROPPED`, `MISSING_REQUIREMENT_ID`).
     - Учти Non-blocking проблемы из `review-report`.
 7. Записать `task-spec-{ts}.md` (метаданные, иерархия созданных задач с их ID из Redmine, матрица декомпозиции, чек-лист).
 
 # 6. Tools
-- Redmine MCP (чтение и запись).
+- Инструменты `redmine_*` (чтение задач и каталогов, создание задач и заметок; REST напрямую, без MCP).
+- CLI `scripts/redmine/*` (батч-публикация по манифесту, снимки каталогов и существующих задач).
 - Файловая система (запись).
 
 # 7. Constraints

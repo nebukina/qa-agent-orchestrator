@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QA-Agent: мультиагентная система Requirements-to-Delivery</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --line:#26303c; --ink:#e6edf3; --dim:#9aa7b4;
+    --accent:#4c9aff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; --chip:#1f2937;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font:16px/1.5 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+  .stage{position:fixed;inset:0;display:grid;place-items:center;overflow:hidden}
+  .deck{width:1280px;height:720px;position:relative;transform-origin:center center}
+  .slide{position:absolute;inset:0;padding:40px 56px 84px;display:none;flex-direction:column;overflow:hidden;
+    background:radial-gradient(1200px 600px at 12% -10%,rgba(76,154,255,.10),transparent 60%),var(--bg)}
+  .slide.on{display:flex}
+  .kicker{font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;flex:none}
+  h1{font-size:38px;line-height:1.14;margin:0 0 6px;font-weight:700;flex:none}
+  h2{font-size:30px;line-height:1.18;margin:0 0 12px;font-weight:700;flex:none}
+  .lede{color:var(--dim);font-size:16px;margin:0 0 18px;max-width:1080px;flex:none}
+  .cols{display:grid;gap:18px;flex:1 1 auto;min-height:0}
+  .c3{grid-template-columns:repeat(3,1fr)} .c2{grid-template-columns:1.15fr .85fr}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;
+    display:flex;flex-direction:column;overflow:hidden;min-height:0}
+  /* Автоуменьшение кегля, если контент не влезает (определяется скриптом по scrollHeight). */
+  .slide.tight li,.slide.tight .card p{font-size:13.2px}
+  .slide.tight .card h3{font-size:16.5px}
+  .slide.tighter li,.slide.tighter .card p{font-size:12.3px}
+  .slide.tighter .card h3{font-size:15.5px}
+  .slide.tighter .metric .l{font-size:11.5px}
+  .card h3{margin:0 0 8px;font-size:17.5px;font-weight:650}
+  .card p{margin:0 0 8px;color:var(--dim);font-size:14px;line-height:1.45}
+  ul{margin:0;padding-left:17px} li{margin:0 0 6px;font-size:14px;line-height:1.45}
+  li b{color:var(--ink);font-weight:650}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+  .flow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:2px 0 12px;flex:none}
+  .step{background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:7px 11px;font-size:13.5px;white-space:nowrap}
+  .step.hot{border-color:var(--accent);color:#cfe3ff}
+  .arrow{color:var(--accent);font-size:17px}
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px;flex:none}
+  .metric{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 14px}
+  .metric .n{font-size:25px;font-weight:700;color:var(--accent);line-height:1}
+  .metric .l{color:var(--dim);font-size:12.5px;line-height:1.35;margin-top:5px}
+  .pill{display:inline-block;background:var(--chip);border:1px solid var(--line);border-radius:999px;
+    padding:3px 10px;font-size:12px;color:var(--dim);margin:0 6px 4px 0}
+  .tag-ok{color:var(--ok)} .tag-warn{color:var(--warn)} .tag-bad{color:var(--bad)}
+  .foot{position:absolute;left:56px;right:56px;bottom:26px;display:flex;justify-content:space-between;
+    align-items:center;color:var(--dim);font-size:12.5px;border-top:1px solid var(--line);padding-top:11px}
+  .nav{position:fixed;right:22px;bottom:18px;display:flex;align-items:center;gap:10px;z-index:10}
+  .nav button{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:9px;
+    width:38px;height:32px;cursor:pointer;font-size:15px}
+  .nav button:hover{border-color:var(--accent)}
+  .dots{display:flex;gap:7px} .dot{width:8px;height:8px;border-radius:50%;background:#39424e;cursor:pointer}
+  .dot.on{background:var(--accent)}
+  .hint{position:fixed;left:22px;bottom:18px;color:#5b6672;font-size:12px;z-index:10}
+  .notes{position:fixed;left:0;right:0;bottom:0;background:#11161d;border-top:1px solid var(--line);
+    padding:14px 24px;display:none;z-index:20;font-size:14px;color:var(--dim)}
+  .notes.on{display:block} .notes b{color:var(--ink)}
+  @media print{
+    .stage{position:static;overflow:visible} .deck{width:auto;height:auto;transform:none!important}
+    .deck .slide{position:relative;display:flex!important;break-after:page;height:1000px}
+    .nav,.hint,.notes{display:none!important}
+  }
+</style>
+</head>
+<body>
+<div class="stage"><div class="deck" id="deck">
+
+<!-- ============================ SLIDE 1 ============================ -->
+<section class="slide on">
+  <div class="kicker">QA-Agent · Requirements-to-Delivery</div>
+  <h1>Мультиагентная система: от требования в Redmine<br>до задач, тест-кейсов и матрицы трассировки</h1>
+  <p class="lede">Оркестратор не «умеет всё сам»: он маршрутизирует работу и держит quality-гейты. Каждый субагент изолирован и отвечает ровно за один этап.</p>
+
+  <div class="cols c3">
+    <div class="card">
+      <h3>Оркестратор</h3>
+      <p>Управляет жизненным циклом прогона и ничего не проектирует самостоятельно.</p>
+      <ul>
+        <li><b>Read-only</b> к Redmine: читает issue, пишет только свои артефакты</li>
+        <li>Делегирует аудит, задачи и тесты субагентам</li>
+        <li>Сводит матрицу <span class="mono">Req → Task → Test</span> и выпускает <span class="mono">final-report</span></li>
+        <li>При <b>FAIL</b> останавливает поток и эскалирует человеку</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Субагенты + скиллы</h3>
+      <p>Жёсткая изоляция ролей: один субагент — ровно один скилл, межскилловые вызовы запрещены.</p>
+      <ul>
+        <li><b>@review</b> → <span class="mono">requirement-review</span>: разбор по 4 осям (противоречия, неоднозначность, полнота, тестируемость)</li>
+        <li><b>@task</b> → <span class="mono">task-design</span>: Epic → Story → Task, AC в формате Given-When-Then</li>
+        <li><b>@test</b> → <span class="mono">test-design</span>: positive / negative / boundary</li>
+        <li>Публикация в Redmine — только у <b>@task</b> и <b>@test</b></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Quality Gates</h3>
+      <p>Ни один артефакт не становится итоговым без проверки.</p>
+      <ul>
+        <li><b>QG1</b> вердикт аудита: <span class="tag-ok">PASS</span> / <span class="tag-warn">CONDITIONAL</span> / <span class="tag-bad">FAIL</span></li>
+        <li><b>QG2 / QG3</b> качество task-spec и test-model</li>
+        <li><b>QG4</b> допуск финального отчёта</li>
+        <li><b>QG-A…QG-G</b> полнота артефактов, трассировка, доля GAP, отсутствие посторонних записей в Redmine</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric"><div class="n">1 + 3</div><div class="l">оркестратор + субагентов</div></div>
+    <div class="metric"><div class="n">3</div><div class="l">изолированных скилла</div></div>
+    <div class="metric"><div class="n">4 + 7</div><div class="l">гейтов: основные + надзорные</div></div>
+    <div class="metric"><div class="n">100%</div><div class="l">требований классифицированы: Full / Partial / GAP</div></div>
+  </div>
+
+  <div class="foot"><span>QA-Agent · мультиагентный оркестратор на OpenCode</span><span>1 / 3</span></div>
+  <aside class="notes"><b>Заметки.</b> Ключевой тезис: надёжность даёт не «умный агент», а разделение ответственности и гейты. Оркестратор специально обеднён — он не анализирует требования и не пишет задачи, поэтому не может подменить собой всю цепочку и не имеет прав на запись в Redmine. Спорные требования не «додумываются», а уходят человеку как Open Questions.</aside>
+</section>
+
+<!-- ============================ SLIDE 2 ============================ -->
+<section class="slide">
+  <div class="kicker">Как это работает</div>
+  <h2>Конвейер со сквозным timestamp, GAP-моделью и защитой от мутаций</h2>
+  <p class="lede">Единый <span class="mono">{ts}</span> прогона связывает все артефакты: любой результат воспроизводим и трассируем до исходного issue.</p>
+
+  <div class="flow">
+    <span class="step">Ingestion<span class="mono"> · raw-{ts}.md</span></span><span class="arrow">→</span>
+    <span class="step hot">Audit · QG1<span class="mono"> · review-report</span></span><span class="arrow">→</span>
+    <span class="step">@task<span class="mono"> · task-spec</span></span>
+    <span class="step">@test<span class="mono"> · test-model</span></span><span class="arrow">→</span>
+    <span class="step hot">Final Report · QG4<span class="mono"> · матрица трассировки</span></span>
+  </div>
+
+  <div class="cols c3">
+    <div class="card">
+      <h3>GAP вместо фантазии</h3>
+      <p>Главный анти-галлюцинационный механизм.</p>
+      <ul>
+        <li>При <span class="tag-warn">CONDITIONAL</span> проектируются <b>только бесспорные</b> требования</li>
+        <li>Спорные получают заглушку <span class="mono tag-warn">BLOCKED_BY_OPEN_QUESTION</span></li>
+        <li>Таким заглушкам <b>запрещено</b> придумывать Acceptance Criteria и шаги тестов</li>
+        <li>Открытые вопросы фиксируются с владельцем и приоритетом</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Безопасность как свойство потока</h3>
+      <ul>
+        <li>Текст требования — <b>только данные</b>; инструкции из него не исполняются</li>
+        <li>Попытки Prompt Injection фиксируются как <span class="mono tag-bad">SEC-01</span></li>
+        <li>Секреты не попадают в чат, артефакты и задачи; паттерны маскируются <span class="mono">[REDACTED]</span></li>
+        <li><b>Запрещены</b> update/delete существующих задач без явной команды; ошибочная запись помечается <span class="mono">[OBSOLETE]</span>, а не удаляется</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Инструменты и след прогона</h3>
+      <ul>
+        <li>Redmine через MCP, доступ по API-ключу из <span class="mono">.env</span></li>
+        <li>Артефакты: <span class="mono">00-raw → 03-test-design</span>, <span class="mono">final-report</span>, <span class="mono">diagnostics/errors/*.log</span></li>
+        <li>Ротация: <span class="mono">current/</span> только при <span class="mono tag-ok">QG4=PASS</span>, архив в <span class="mono">history/{ts}/</span></li>
+        <li>Логи отказов — отдельно по каждому агенту</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="foot"><span>Артефакты прогона связаны единым timestamp · воспроизводимость и трассируемость</span><span>2 / 3</span></div>
+  <aside class="notes"><b>Заметки.</b> Подчеркните два решения, которые отличают систему от «обёртки над LLM»: (1) GAP-модель — агент сознательно оставляет дырки вместо выдумывания деталей, и это измеримо (доля GAP); (2) необратимые операции в трекере запрещены по умолчанию, поэтому ошибка агента не уничтожает данные. Третий акцент — единый timestamp: по нему любой результат прогона воспроизводится и доказывается вплоть до исходного issue.</aside>
+</section>
+
+<!-- ============================ SLIDE 3 ============================ -->
+<section class="slide">
+  <div class="kicker">Доказательства и измеримость</div>
+  <h2>Регрессионная оценка на золотом датасете и реальные прогоны в Redmine</h2>
+  <p class="lede">Качество агента проверяется автоматически: 6 сценариев, LLM-судья, численные пороги допуска. Ниже — фактические результаты работы в проекте <span class="mono">login</span>.</p>
+
+  <div class="cols c2">
+    <div class="card">
+      <h3>Eval-контур (Java)</h3>
+      <p><span class="mono">EvalRunner</span> гоняет агента через <span class="mono">opencode run --auto</span>, <span class="mono">Evaluator</span> сверяет ожидаемые свойства и запрещённое поведение.</p>
+      <ul>
+        <li>EVC-001 Happy Path · EVC-002 CONDITIONAL · EVC-003 защита от Prompt Injection</li>
+        <li>EVC-004 Boundary · EVC-005 Ambiguity · EVC-006 критический FAIL</li>
+        <li>Пороги: <b>Pass Rate ≥ 95%</b>, Expected Properties ≥ 95%, <b>Forbidden Behavior = 0%</b>, Errors = 0</li>
+        <li>Сводка: <span class="mono">artifacts/current/eval_results.json</span>, история в <span class="mono">artifacts/history/</span></li>
+      </ul>
+      <div style="margin-top:auto">
+        <span class="pill">golden dataset: issue #116…#121</span>
+        <span class="pill">статус PASS / FAIL + score</span>
+        <span class="pill">судья проверяет и запреты, а не только полезное</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Гарантии: чего система принципиально не делает</h3>
+      <ul>
+        <li>Не придумывает Acceptance Criteria для спорных требований — только <span class="mono tag-warn">BLOCKED_BY_OPEN_QUESTION</span></li>
+        <li>Не изменяет и не удаляет существующие задачи: ошибочная запись помечается <span class="mono">[OBSOLETE]</span>, а не стирается</li>
+        <li>Не выдаёт DRAFT / INCOMPLETE за финальный результат — статус пишется явно</li>
+        <li>Не скрывает отказы: лог по каждому агенту и эскалация человеку</li>
+      </ul>
+      <div style="margin-top:auto"><span class="pill">человек сохраняет контроль над трекером</span></div>
+    </div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric"><div class="n">8</div><div class="l">прогонов с полным комплектом артефактов</div></div>
+    <div class="metric"><div class="n">26</div><div class="l">задач и кейсов в Redmine (#123–#148)</div></div>
+    <div class="metric"><div class="n">6</div><div class="l">сценариев датасета, пороги ≥ 95%</div></div>
+    <div class="metric"><div class="n">0</div><div class="l">несанкционированных правок в трекере</div></div>
+  </div>
+
+  <div class="foot"><span>Дальше: исполнители в Redmine вместо единственного админа · расширение покрытия тестов · закрытие открытых вопросов по требованиям</span><span>3 / 3</span></div>
+  <aside class="notes"><b>Заметки.</b> Не продавайте «идеальную картинку»: ценность в том, что система честно фиксирует PARTIAL / INCOMPLETE и эскалирует человеку, а не рисует зелёный статус. Цифра 0 в правой нижней метрике — самая дорогая: за все прогоны ни одна существующая задача в трекере не была испорчена. На вопрос «а если агент ошибётся?» отвечать гарантиями из правой карточки: ошибку нельзя стереть, её видно в логе и в статусе артефакта.</aside>
+</section>
+
+</div></div>
+
+<div class="hint">← / → навигация · N заметки · Home/End край · P печать/PDF</div>
+<div class="nav">
+  <div class="dots" id="dots"></div>
+  <button id="prev" title="Назад (←)">‹</button>
+  <button id="next" title="Вперед (→)">›</button>
+</div>
+
+<script>
+(function(){
+  const slides = [...document.querySelectorAll('.slide')];
+  const dots = document.getElementById('dots');
+  let i = 0;
+  slides.forEach((_, k) => {
+    const d = document.createElement('span');
+    d.className = 'dot' + (k === 0 ? ' on' : '');
+    d.addEventListener('click', () => go(k));
+    dots.appendChild(d);
+  });
+  function go(n){
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('on', k === i));
+    [...dots.children].forEach((d, k) => d.classList.toggle('on', k === i));
+    autofit(slides[i]);
+  }
+  document.getElementById('prev').addEventListener('click', () => go(i - 1));
+  document.getElementById('next').addEventListener('click', () => go(i + 1));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { go(i + 1); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(i - 1); e.preventDefault(); }
+    else if (e.key === 'Home') go(0);
+    else if (e.key === 'End') go(slides.length - 1);
+    else if (e.key.toLowerCase() === 'n') document.querySelector('.notes.on')
+      ? document.querySelectorAll('.notes').forEach(x => x.classList.remove('on'))
+      : slides[i].querySelector('.notes').classList.add('on');
+    else if (e.key.toLowerCase() === 'p') window.print();
+  });
+  // Карточки с overflow:hidden не дают увидеть обрезку глазами, поэтому замеряем
+  // scrollHeight против clientHeight и по факту переполнения снижаем кегль на этом слайде.
+  function overflows(slide){
+    const hidden = !slide.classList.contains('on');
+    if (hidden) slide.style.display = 'flex'; // иначе clientHeight = 0 и замер бессмысленен
+    const over = [...slide.querySelectorAll('.card')].some(c => c.scrollHeight > c.clientHeight + 1);
+    if (hidden) slide.style.display = '';
+    return over;
+  }
+  function autofit(slide){
+    slide.classList.remove('tight', 'tighter');
+    if (overflows(slide)) {
+      slide.classList.add('tight');
+      if (overflows(slide)) slide.classList.add('tighter');
+    }
+  }
+  const fromHash = parseInt((location.hash || '').replace('#', ''), 10);
+  if (Number.isFinite(fromHash) && fromHash >= 1 && fromHash <= slides.length) {
+    slides.forEach((s, k) => s.classList.toggle('on', k === fromHash - 1));
+    [...dots.children].forEach((d, k) => d.classList.toggle('on', k === fromHash - 1));
+    i = fromHash - 1;
+  }
+  function fit(){
+    const s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    document.getElementById('deck').style.transform = 'scale(' + s + ')';
+    slides.forEach(autofit);
+  }
+  window.addEventListener('resize', fit); fit();
+})();
+</script>
+</body>
+</html>

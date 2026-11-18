@@ -22,11 +22,12 @@ permissions:
 3. Сохрани артефакт `task-spec-{ts}.md` в папку `artifacts/02-task-design/`.
    4. # Инструкции
    Активируй скилл `task-design`.
-   Проверь дубли: используй инструмент `redmine_search` (или `redmine_list_issues`), чтобы найти существующие задачи.
+   Проверь дубли: `redmine_search_issues` (или `redmine_list_issues`, либо `node scripts/redmine/meta.mjs --kind issues --project <id>`), чтобы найти существующие задачи.
    **Создание в Redmine:** Сформируй структуру задач (Epic, Story, Task).
-      - Найди ID проекта в Redmine (используя инструмент `redmine_list_projects`).
-      - Используя инструмент создания задач (например, `redmine_create_issue`), создай задачи в Redmine.
+      - Найди ID проекта (`redmine_list_projects`).
+      - Опубликуй иерархию батчем: `node scripts/redmine/publish.mjs --manifest artifacts/02-task-design/task-manifest-{ts}.json` (предварительно `--dry-run`), либо создавай задачи инструментом `redmine_create_issue`.
       - В поле "Описание" каждой задачи укажи её `requirement_id`.
+      - ID созданных задач бери из `artifacts/diagnostics/publish-results-{ts}.json`, а не из памяти.
    Сохрани артефакт `task-spec-{ts}.md`.
 
 # Запреты

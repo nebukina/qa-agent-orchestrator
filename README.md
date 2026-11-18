@@ -8,6 +8,7 @@
 - [Архитектура проекта](#архитектура-проекта)
 - [Компоненты](#компоненты)
 - [Структура проекта](#структура-проекта)
+- [Канал Redmine (без MCP)](#канал-redmine-bez-mcp)
 - [Установка и настройка](#установка-и-настройка)
 - [Запуск флоу](#запуск-флоу)
 - [Структура артефактов](#структура-артефактов)
@@ -63,14 +64,17 @@ task-spec-{ts}.md                    test-model-{ts}.md
 | Скилл | Этап | Quality Gate | Что делает |
 |-------|------|--------------|------------|
 | `requirement-review` | Аудит | QG1 | Разбор требований по 4 осям (противоречия, неоднозначности, полнота, тестируемость), вердикт PASS/CONDITIONAL/FAIL |
-| `task-design` | Задачи | QG2 | Иерархия Epic → Story → Task → Sub-task, AC в формате Given-When-Then, создание реальных задач в Redmine через MCP |
-| `test-design` | Тесты | QG3 | Тест-кейсы positive / negative / boundary, публикация в Redmine через MCP |
+| `task-design` | Задачи | QG2 | Иерархия Epic → Story → Task → Sub-task, AC в формате Given-When-Then, создание реальных задач в Redmine (`redmine_create_issue` или CLI-батч) |
+| `test-design` | Тесты | QG3 | Тест-кейсы positive / negative / boundary, публикация в Redmine (`redmine_create_issue` или CLI-батч) |
 
 ### Прочее
 
 - **`AGENTS.md`** — глобальные правила: ролевая модель, запрет межскилловых вызовов, передача артефактов между агентами, правила для CONDITIONAL, защита от Prompt Injection и утечки секретов, ограничения на действия в Redmine.
-- **`opencode.json`** — конфигурация OpenCode: локальный MCP-сервер Redmine [`@speraltafibrazo/redmine-mcp`](https://www.npmjs.com/package/@speraltafibrazo/redmine-mcp) (`REDMINE_URL` по умолчанию `http://localhost:3000`).
-- **`.opencode/redmine-mcp-launch.mjs`** — launcher этого MCP-сервера: читает `.env` проекта, проверяет каждый кандидат ключа живым запросом `GET /users/current.json` и запускает пакет только с аутентифицированным ключом. Нужен потому, что OpenCode не раскрывает `{env:REDMINE_KEY}` в блоке `environment` локального сервера (см. [Известные ограничения](#известные-ограничения)); без launcher'а агент молча работает анонимно: чтение публичного проекта доступно, любая запись отклоняется.
+- **`opencode.json`** — конфигурация OpenCode: разрешения `redmine_read` / `redmine_write`, allow для `node scripts/redmine/*` и отключённый (`disabled: true`) прежний MCP-сервер Redmine [`@speraltafibrazo/redmine-mcp`](https://www.npmjs.com/package/@speraltafibrazo/redmine-mcp).
+- **`.opencode/plugins/redmine/index.js`** — плагин OpenCode: регистрирует нативные инструменты `redmine_*` поверх REST API Redmine (замена MCP-канала), пространство имён `redmine`.
+- **`scripts/lib/redmine.mjs`** — общий HTTP-клиент Redmine для плагина и CLI: резолв ключа из `.env` живым запросом `GET /users/current.json`, маскирование секретов, отсутствие методов записи сверх POST и заметки.
+- **`scripts/redmine/*.mjs`** — CLI: `whoami.mjs`, `fetch-issue.mjs`, `meta.mjs`, `publish.mjs`, `add-note.mjs` (см. [Канал Redmine](#канал-redmine-bez-mcp)).
+- **`.opencode/redmine-mcp-launch.mjs`** — бывший launcher MCP-сервера, оставлен для отката: пока в `opencode.json` стоит `disabled: true`, он не запускается.
 - **`pom.xml` / `src/main/java/evals/`** — Maven-модуль `qa-eval-runner` (Java 17, Jackson): оценочный контур агента.
 - **`package.json`** — Node-зависимости (`dotenv`) для загрузки `.env` со секретами.
 
@@ -88,7 +92,12 @@ task-spec-{ts}.md                    test-model-{ts}.md
 │   │   ├── requirement-review/  # Логика аудита требований (QG1)
 │   │   ├── task-design/         # Логика проектирования задач (QG2)
 │   │   └── test-design/         # Логика проектирования тест-кейсов (QG3)
-│   └── redmine-mcp-launch.mjs   # Launcher MCP Redmine: берет ключ из .env и проверяет его живым запросом
+│   ├── plugins/
+│   │   └── redmine/             # Нативные инструменты redmine_* (REST вместо MCP)
+│   └── redmine-mcp-launch.mjs   # Бывший launcher MCP Redmine: не запускается (disabled: true)
+├── scripts/
+│   ├── lib/redmine.mjs          # Общий REST-клиент Redmine: ключ из .env, только GET/POST
+│   └── redmine/                 # CLI: whoami, fetch-issue, meta, publish, add-note
 ├── artifacts/                   # Артефакты прогонов и результаты eval-контюра (создается автоматически)
 ├── src/main/java/evals/
 │   ├── EvalRunner.java          # Прогон агента по golden dataset
@@ -98,18 +107,58 @@ task-spec-{ts}.md                    test-model-{ts}.md
 ├── target/                      # Скомпилированные классы (mvn compile)
 ├── .env                         # Секреты (REDMINE_KEY), НЕ хранится в git
 ├── AGENTS.md                    # Глобальные правила для всех агентов
-├── opencode.json                # Конфигурация OpenCode (MCP Redmine)
+├── opencode.json                # Конфигурация OpenCode (разрешения redmine_*, отключённый MCP)
 ├── pom.xml                      # Maven-сборка eval-раннера
 ├── package.json                 # Node-зависимости
 └── README.md                    # Этот файл
 ```
+
+## Канал Redmine (без MCP)
+
+Redmine подключается напрямую к REST API (`X-Redmine-API-Key`, ключ из `.env`) двумя способами. Общий слой — `scripts/lib/redmine.mjs`: он резолвит ключ живым запросом `GET /users/current.json` (побеждает первый аутентифицировавшийся кандидат: `.env` → `REDMINE_KEY` → `REDMINE_API_KEY`), маскирует секрет в любом выводе и **не знает методов записи, кроме POST и заметки**.
+
+### 1. Нативные инструменты плагина (`.opencode/plugins/redmine/index.js`)
+
+Пространство имён `redmine`, агент вызывает их через Code Mode (`tools.redmine.*`):
+
+| Инструмент | Назначение | Действие разрешений |
+|---|---|---|
+| `redmine_get_issue` | детали задачи, `format=detail\|json` | `redmine_read` |
+| `redmine_list_issues` | список задач проекта (проверка дублей) | `redmine_read` |
+| `redmine_search_issues` | полнотекстовый поиск по задачам | `redmine_read` |
+| `redmine_list_metadata` | каталоги: `statuses`, `trackers`, `priorities`, `projects`, `versions`, `categories`, `me`, `users` | `redmine_read` |
+| `redmine_list_projects` | проекты: `id — Имя (identifier)` | `redmine_read` |
+| `redmine_create_issue` | создать новую задачу (трекер/приоритет/категория/версия — именем или ID) | `redmine_write` |
+| `redmine_add_note` | добавить заметку к задаче | `redmine_write` |
+
+`update_issue`, `change_issue_status`, `delete_*`, `edit_journal`, `remove_*` в плагине нет физически: право изменять и удалять существующие задачи агентам не выдаётся (`AGENTS.md`).
+
+### 2. CLI-скрипты (`scripts/redmine/`)
+
+| Скрипт | Пример команды | Назначение |
+|---|---|---|
+| `whoami.mjs` | `node scripts/redmine/whoami.mjs` | диагностика канала: URL, источник ключа, отпечаток sha256, кто аутентифицирован |
+| `fetch-issue.mjs` | `node scripts/redmine/fetch-issue.mjs --id 120` | снимок требований → `artifacts/00-raw-requirements/raw-{ts}.md` |
+| `meta.mjs` | `node scripts/redmine/meta.mjs --kind trackers` | каталоги и список существующих задач (`--kind issues --project 1`) |
+| `publish.mjs` | `node scripts/redmine/publish.mjs --manifest <json> [--dry-run]` | батч-публикация задач и тест-кейсов по манифесту |
+| `add-note.mjs` | `node scripts/redmine/add-note.mjs --issue 120 --notes-file <md>` | заметка к задаче |
+
+Манифест `publish.mjs` — JSON вида `{ "project_id": 1, "ts": "{ts}", "defaults": { "tracker": "Task" }, "issues": [ { "key": "STORY-01", "subject": "...", "description": "...", "tracker": "Task", "parent_key": "EPIC-01", "requirement_id": "R-01" } ] }`. Родитель создаётся раньше ребёнка, `parent_key` связывает их; результат — `artifacts/diagnostics/publish-results-{ts}.json` с реальными ID. Коды выхода: `0` — успех, `2` — остановка на 401/403 (эскалация), `3` — есть отклонённые позиции.
+
+### Гарантии и известные особенности экземпляра
+
+- `PUT`, `PATCH`, `DELETE` отклоняются до обращения к серверу (`METHOD_BLOCKED`); исключение — заметка, где Redmine требует `PUT /issues/:id.json` с телом ровно `{"issue":{"notes":"..."}}`.
+- Новая задача не может получить `status_id` или `done_ratio` (`FORBIDDEN_FIELD`) — статус берётся рабочий по умолчанию.
+- **Redmine молча отбрасывает `parent_id`, если у трекёра ребёнка не настроен `Subtask of` для трекёра родителя.** Клиент это проверяет чтением и честно пишет `PARENT_DROPPED` в предупреждения (в этом экземпляре трекеры `Task`/`TestCase` такой настройки не имеют).
+- Каталоги `/enumerations/priorities.json` и `/statuses.json` на этом экземпляре отдают `404` — они считаются отсутствующими, приоритет и статус тогда берутся рабочие по умолчанию.
+- `users.json` требует прав администратора: для обычных ключей используйте `--kind me` или ID из существующей задачи.
 
 ## Установка и настройка
 
 Требуется:
 
 - **[OpenCode](https://opencode.ai)** (установка через npm: `npm install -g opencode-ai`);
-- **Node.js** — для MCP-сервера Redmine (запускается через `npx`) и Node-зависимостей;
+- **Node.js** — для CLI-скриптов Redmine и плагина OpenCode;
 - **JDK 17+ и Maven** — только для оценочного контура;
 - **доступный экземпляр Redmine** (по умолчанию `http://localhost:3000`).
 
@@ -122,13 +171,14 @@ npm install
 # 2. Доступ к Redmine: создать .env в корне проекта (файл исключен из git через .gitignore)
 #    REDMINE_KEY=<ваш API-ключ Redmine>
 #    При необходимости поменять REDMINE_URL (по умолчанию http://localhost:3000)
-#    Launcher .opencode/redmine-mcp-launch.mjs возьмет ключ из .env сам, экспортировать
+#    Клиент scripts/lib/redmine.mjs (плагин и CLI) возьмёт ключ из .env сам, экспортировать
 #    переменную в окружение оболочки не требуется.
 
-# 3. Проверка канала (только чтение, ни одной записи в Redmine): в сессии OpenCode
-#    запросить list_metadata kind=me. Ответ вида "#1 — <login> (<имя>)" означает, что
-#    ключ доставлен и аутентифицирован. Ответ "Credenciales inválidas o sin permiso
-#    para esta acción." — ключ не доставлен или не имеет прав, см. «Известные ограничения».
+# 3. Проверка канала (только чтение, ни одной записи в Redmine):
+#    node scripts/redmine/whoami.mjs
+#    Строка "Пользователь: #<id> — <login> (<имя>)" означает, что ключ доставлен и
+#    аутентифицирован. REDMINE_KEY_MISSING / REDMINE_AUTH_FAILED — ключ не найден или
+#    не имеет прав.
 
 # 4. (Опционально, для eval-контюра) сборка Java-модуля
 mvn clean compile
@@ -226,3 +276,4 @@ mvn exec:java -Dexec.mainClass="evals.EvalRunner"
 - Секреты (API-ключи, токены) не выводятся в чат, артефакты и задачи; подозрительные паттерны маскируются как `[REDACTED]`.
 - `.env` с `REDMINE_KEY` исключен из репозитория (`.gitignore`).
 - Агентам запрещено удалять проекты/задачи/пользователей и менять статусы задач сверх того, что предусмотрено скиллами.
+- Канал Redmine усилен структурно: `PUT` / `PATCH` / `DELETE` отклоняются в клиенте до запроса, исключения нет кроме добавления заметки (`{"issue":{"notes": "..."}}`); `status_id` и `done_ratio` в новой задаче отклоняются как `FORBIDDEN_FIELD`.

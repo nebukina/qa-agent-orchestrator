@@ -21,7 +21,8 @@ permissions:
 2. Следуй инструкциям из скилла (включая шаги и Quality Gate QG3).
 3. Сформируй и сохрани артефакт `test-model-{ts}.md` в папку `artifacts/03-test-design/`. (YAML больше не создаем — тест-кейсы публикуются сразу в Redmine).
 4. **Публикация в Redmine:** После того как тест-модель сформирована и проверена:
-   - Используя MCP-инструмент (например, `redmine_create_issue`), создай задачи в проекте `redmine.project_id`.
+   - Опубликуй кейсы батчем: `node scripts/redmine/publish.mjs --manifest artifacts/03-test-design/test-manifest-{ts}.json` (предварительно `--dry-run`), либо создавай их инструментом `redmine_create_issue`.
+   - Реальные ID бери из `artifacts/diagnostics/publish-results-{ts}.json`.
    - В поле "Трекер" (Tracker) укажи тестовый трекер (например, `TestCase` или `Task`).
    - В "Тему" (Subject) напиши `[TC] <название> (<тип>)`.
    - В поле "Описание" (Description) **ОБЯЗАТЕЛЬНО** добавь:

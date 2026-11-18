@@ -8,8 +8,14 @@
         "cwd": ".",
         "environment": {
           "REDMINE_URL": "http://localhost:3000"
-        }
+        },
+        "disabled": true
       }
     }
-  }
+  },
+  "permissions": [
+    { "action": "redmine_read", "resource": "*", "effect": "allow" },
+    { "action": "redmine_write", "resource": "*", "effect": "allow" },
+    { "action": "shell", "resource": "node scripts/redmine/*", "effect": "allow" }
+  ]
 }
